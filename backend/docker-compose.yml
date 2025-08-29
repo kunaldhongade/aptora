@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: aptora_db
+      POSTGRES_USER: aptora_user
+      POSTGRES_PASSWORD: aptora_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aptora_user -d aptora_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://aptora_user:aptora_password@postgres:5432/aptora_db
+      HOST: 0.0.0.0
+      PORT: 8080
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      RUST_LOG: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/usr/local/bin/migrations
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

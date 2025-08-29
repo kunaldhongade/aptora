@@ -1,0 +1,53 @@
+[package]
+name = "aptora-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web framework
+actix-web = "4.4"
+actix-cors = "0.7"
+
+# Database
+diesel = { version = "2.1", features = ["postgres", "chrono", "uuid"] }
+diesel_migrations = "2.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Environment and configuration
+dotenv = "0.15"
+config = "0.14"
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID support
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# HTTP client for external APIs
+reqwest = { version = "0.11", features = ["json"] }
+
+# JWT for authentication
+jsonwebtoken = "9.2"
+
+# Password hashing
+bcrypt = "0.15"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
