@@ -7,14 +7,14 @@ A complete full-stack trading platform built with React frontend, Rust backend, 
 - **Real-time Trading**: Perpetual futures trading via Kana Labs API
 - **Modern UI**: React frontend with Tailwind CSS and real-time updates
 - **High Performance**: Rust backend with Actix Web
-- **Database Management**: PostgreSQL with pgAdmin interface
+- **Database Management**: Neon PostgreSQL (cloud database)
 - **Production Ready**: Docker containerization and deployment setup
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
 - **Backend**: Rust, Actix Web, Diesel ORM
-- **Database**: PostgreSQL
+- **Database**: Neon PostgreSQL
 - **API Integration**: Kana Labs Perpetual Futures API
 - **Containerization**: Docker & Docker Compose
 
@@ -26,37 +26,50 @@ A complete full-stack trading platform built with React frontend, Rust backend, 
 ./setup-env.sh
 ```
 
-### 2. Configure API Keys
+### 2. Configure Database and API Keys
 
-Edit the `.env` file and add your Kana Labs API key:
+Edit the `.env` file and add your Neon database URL and Kana Labs API key:
 
 ```bash
+DATABASE_URL=postgresql://username:password@your-neon-host:5432/neondb?sslmode=require
 KANA_API_KEY=your-actual-kana-labs-api-key-here
 ```
 
-### 3. Start the Platform
+### 3. Start the Backend
 
 ```bash
 ./start.sh
 ```
 
-### 4. Access Your Platform
+### 4. Start the Frontend (in a separate terminal)
 
-- **Frontend**: http://localhost:5173
+```bash
+./start-frontend.sh
+```
+
+Or manually:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 5. Access Your Platform
+
 - **Backend API**: http://localhost:8080/api/health
-- **Database Management**: http://localhost:5050
-  - Email: `admin@aptora.com`
-  - Password: `admin123`
+- **Frontend**: http://localhost:5173
 
 ## 📁 Project Structure
 
 ```
 aptora/
-├── frontend/          # React frontend application
-├── backend/           # Rust backend API
-├── docker-compose.yml # Main Docker Compose configuration
+├── frontend/          # React frontend application (run locally)
+├── backend/           # Rust backend API (run in Docker)
+├── docker-compose.yml # Backend Docker Compose configuration
 ├── setup-env.sh      # Environment setup script
-├── start.sh          # Platform startup script
+├── start.sh          # Backend startup script
+├── start-frontend.sh # Frontend startup script
 └── README.md         # This file
 ```
 
@@ -94,15 +107,10 @@ docker compose restart
 
 ## 🗄️ Database Management
 
-Access pgAdmin at http://localhost:5050 to manage your PostgreSQL database:
+The platform uses Neon PostgreSQL (cloud database). You can manage your database through:
 
-**Connection Details:**
-
-- Host: `postgres`
-- Port: `5432`
-- Database: `aptora_db`
-- Username: `aptora_user`
-- Password: `aptora_password`
+- **Neon Console**: Access your database through the Neon web console
+- **Direct Connection**: Use any PostgreSQL client with your connection string
 
 ## 🚀 Production Deployment
 

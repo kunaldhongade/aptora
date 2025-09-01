@@ -10,6 +10,13 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Check if DATABASE_URL is set
+if grep -q "your-neon-host" .env; then
+    echo "⚠️  Warning: DATABASE_URL not configured in .env file"
+    echo "Please edit .env file and add your Neon database URL"
+    echo ""
+fi
+
 # Check if KANA_API_KEY is set
 if grep -q "your-kana-labs-api-key-here" .env; then
     echo "⚠️  Warning: KANA_API_KEY not configured in .env file"
@@ -17,24 +24,66 @@ if grep -q "your-kana-labs-api-key-here" .env; then
     echo ""
 fi
 
-echo "📦 Starting all services..."
+echo "📦 Starting backend service..."
 docker compose up -d
 
 echo ""
-echo "⏳ Waiting for services to start..."
+echo "⏳ Waiting for backend to start..."
 sleep 30
 
 echo ""
-echo "🔍 Checking service status..."
+echo "🔍 Checking backend status..."
 docker compose ps
 
 echo ""
-echo "✅ Aptora Trading Platform is starting!"
+echo "✅ Backend service is starting!"
 echo ""
 echo "🌐 Access your platform:"
-echo "   Frontend: http://localhost:5173"
 echo "   Backend:  http://localhost:8080/api/health"
-echo "   pgAdmin:  http://localhost:5050 (admin@aptora.com / admin123)"
+echo ""
+echo "🚀 To start the frontend (run in a separate terminal):"
+echo "   cd frontend && npm install && npm run dev"
+echo "   Frontend will be available at: http://localhost:5173"
 echo ""
 echo "📊 View logs: docker compose logs -f"
 echo "🛑 Stop: docker compose down"
+
+
+echo "🚀 Starting Aptora Frontend"
+echo "==========================="
+
+# Check if we're in the right directory
+if [ ! -d "frontend" ]; then
+    echo "❌ Error: frontend directory not found!"
+    echo "Please run this script from the project root directory."
+    exit 1
+fi
+
+# Check if backend is running
+if ! curl -s http://localhost:8080/api/health > /dev/null; then
+    echo "⚠️  Warning: Backend is not running at http://localhost:8080"
+    echo "Please start the backend first with: ./start.sh"
+    echo ""
+fi
+
+echo "📦 Installing frontend dependencies..."
+cd frontend
+
+# Install dependencies if node_modules doesn't exist
+if [ ! -d "node_modules" ]; then
+    echo "Installing npm dependencies..."
+    npm install
+else
+    echo "Dependencies already installed."
+fi
+
+echo ""
+echo "🌐 Starting frontend development server..."
+echo "Frontend will be available at: http://localhost:5173"
+echo "Backend API: http://localhost:8080/api/health"
+echo ""
+echo "Press Ctrl+C to stop the frontend server"
+echo ""
+
+# Start the development server
+npm run dev

@@ -7,8 +7,8 @@ echo "================================================"
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     cat > .env << EOF
-# Database Configuration
-DATABASE_URL=postgresql://aptora_user:aptora_password@localhost:5432/aptora_db
+# Neon Database Configuration
+DATABASE_URL=postgresql://username:password@your-neon-host:5432/neondb?sslmode=require
 
 # Server Configuration
 HOST=127.0.0.1
@@ -38,12 +38,13 @@ fi
 
 echo ""
 echo "📝 Next Steps:"
-echo "1. Edit .env file and add your Kana Labs API key"
-echo "2. Run: docker compose up -d"
-echo "3. Access:"
-echo "   - Frontend: http://localhost:5173"
+echo "1. Edit .env file and add your Neon database URL"
+echo "2. Edit .env file and add your Kana Labs API key"
+echo "3. Start backend: ./start.sh"
+echo "4. Start frontend (in separate terminal): cd frontend && npm install && npm run dev"
+echo "5. Access:"
 echo "   - Backend: http://localhost:8080/api/health"
-echo "   - pgAdmin: http://localhost:5050 (admin@aptora.com / admin123)"
+echo "   - Frontend: http://localhost:5173"
 echo ""
 echo "🎯 Your Aptora Trading Platform will be ready!"
 

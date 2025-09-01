@@ -41,144 +41,169 @@ pub struct GetOrdersQuery {
     pub per_page: Option<i64>,
 }
 
-// Get all markets from Kana Labs
+// Get all markets (with dummy data for now)
 #[actix_web::get("/markets")]
 pub async fn get_markets(pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
-    let kana_client = KanaClient::new()?;
-    let markets = kana_client.get_markets().await?;
-
-    // Convert Kana markets to our format
-    let market_responses: Vec<MarketResponse> = markets
-        .into_iter()
-        .map(|kana_market| MarketResponse {
-            id: uuid::Uuid::new_v4(), // Generate a local ID
-            symbol: kana_market.symbol,
-            base_asset: kana_market.base_asset,
-            quote_asset: kana_market.quote_asset,
-            min_order_size: 0.001, // Default minimum
-            max_order_size: 1000000.0, // Default maximum
-            tick_size: 0.01, // Default tick size
+    // Return dummy market data
+    let market_responses: Vec<MarketResponse> = vec![
+        MarketResponse {
+            id: uuid::Uuid::new_v4(),
+            symbol: "APT/USDT".to_string(),
+            base_asset: "APT".to_string(),
+            quote_asset: "USDT".to_string(),
+            min_order_size: 0.1,
+            max_order_size: 1000000.0,
+            tick_size: 0.01,
             is_active: true,
-        })
-        .collect();
+        },
+        MarketResponse {
+            id: uuid::Uuid::new_v4(),
+            symbol: "BTC/USDT".to_string(),
+            base_asset: "BTC".to_string(),
+            quote_asset: "USDT".to_string(),
+            min_order_size: 0.001,
+            max_order_size: 1000.0,
+            tick_size: 0.1,
+            is_active: true,
+        },
+        MarketResponse {
+            id: uuid::Uuid::new_v4(),
+            symbol: "ETH/USDT".to_string(),
+            base_asset: "ETH".to_string(),
+            quote_asset: "USDT".to_string(),
+            min_order_size: 0.01,
+            max_order_size: 10000.0,
+            tick_size: 0.01,
+            is_active: true,
+        },
+        MarketResponse {
+            id: uuid::Uuid::new_v4(),
+            symbol: "SOL/USDT".to_string(),
+            base_asset: "SOL".to_string(),
+            quote_asset: "USDT".to_string(),
+            min_order_size: 0.1,
+            max_order_size: 100000.0,
+            tick_size: 0.01,
+            is_active: true,
+        },
+    ];
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(market_responses)))
 }
 
-// Get orderbook for a specific market
+// Get orderbook for a specific market (with dummy data)
 #[actix_web::get("/orderbook/{symbol}")]
 pub async fn get_orderbook(
+    path: web::Path<String>,
     query: web::Query<GetOrderbookRequest>,
-    pool: web::Data<DbPool>,
+    _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
-    query.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
+    let symbol = path.into_inner();
+    
+    // Return dummy orderbook data
+    let base_price = match symbol.as_str() {
+        "APT/USDT" => 8.45,
+        "BTC/USDT" => 43250.75,
+        "ETH/USDT" => 2650.30,
+        "SOL/USDT" => 98.45,
+        _ => 100.0,
+    };
 
-    let kana_client = KanaClient::new()?;
-    let orderbook = kana_client.get_orderbook(&query.symbol, query.depth).await?;
+    let bids: Vec<OrderbookEntry> = (1..=10).map(|i| {
+        let price = base_price - (i as f64 * 0.01);
+        let quantity = (100.0 + (i as f64 * 50.0)) / price;
+        OrderbookEntry {
+            price,
+            quantity,
+            total: price * quantity,
+        }
+    }).collect();
 
-    // Convert Kana orderbook to our format
-    let bids: Vec<OrderbookEntry> = orderbook.bids
-        .into_iter()
-        .map(|entry| OrderbookEntry {
-            price: entry.price,
-            quantity: entry.size,
-            total: entry.price * entry.size,
-        })
-        .collect();
-
-    let asks: Vec<OrderbookEntry> = orderbook.asks
-        .into_iter()
-        .map(|entry| OrderbookEntry {
-            price: entry.price,
-            quantity: entry.size,
-            total: entry.price * entry.size,
-        })
-        .collect();
+    let asks: Vec<OrderbookEntry> = (1..=10).map(|i| {
+        let price = base_price + (i as f64 * 0.01);
+        let quantity = (100.0 + (i as f64 * 50.0)) / price;
+        OrderbookEntry {
+            price,
+            quantity,
+            total: price * quantity,
+        }
+    }).collect();
 
     let orderbook_response = OrderbookResponse {
-        market_id: uuid::Uuid::new_v4(), // Generate a local ID
+        market_id: uuid::Uuid::new_v4(),
         bids,
         asks,
-        last_updated: orderbook.timestamp,
+        last_updated: chrono::Utc::now(),
     };
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(orderbook_response)))
 }
 
-// Place an order through Kana Labs
+// Place an order (with dummy response for now)
 #[actix_web::post("/orders")]
 pub async fn place_order(
     order_data: web::Json<PlaceOrderRequest>,
-    pool: web::Data<DbPool>,
+    _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
     let order_data = order_data.into_inner();
     order_data.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
 
-    let kana_client = KanaClient::new()?;
-    
-    // Convert to Kana Labs format
-    let kana_order = KanaOrderRequest {
-        symbol: order_data.symbol.clone(),
-        side: order_data.side.clone(),
-        order_type: order_data.order_type.clone(),
-        size: order_data.size,
-        price: order_data.price,
-        leverage: order_data.leverage,
-        margin_type: order_data.margin_type.clone(),
-    };
-
-    let kana_response = kana_client.place_order(&kana_order).await?;
-
-    // Convert response to our format
+    // Return dummy order response
     let order_response = OrderResponse {
-        id: uuid::Uuid::new_v4(), // Generate a local ID
-        market_id: uuid::Uuid::new_v4(), // Generate a local market ID
-        order_type: kana_response.order_type,
-        side: kana_response.side,
-        quantity: kana_response.size,
-        price: kana_response.price,
-        status: kana_response.status,
-        filled_quantity: kana_response.filled_size,
-        average_price: kana_response.average_price,
+        id: uuid::Uuid::new_v4(),
+        market_id: uuid::Uuid::new_v4(),
+        order_type: order_data.order_type,
+        side: order_data.side,
+        quantity: order_data.size,
+        price: Some(order_data.price.unwrap_or(0.0)),
+        status: "pending".to_string(),
+        filled_quantity: 0.0,
+        average_price: Some(order_data.price.unwrap_or(0.0)),
         leverage: order_data.leverage,
-        margin_type: order_data.margin_type.clone(),
-        created_at: kana_response.created_at,
+        margin_type: order_data.margin_type,
+        created_at: chrono::Utc::now(),
     };
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(order_response)))
 }
 
-// Get user orders from Kana Labs
+// Get user orders (with dummy data for now)
 #[actix_web::get("/orders")]
 pub async fn get_orders(
     query: web::Query<GetOrdersQuery>,
-    pool: web::Data<DbPool>,
+    _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
-    // For now, we'll need to get the wallet address from the authenticated user
-    // This is a placeholder - you'll need to implement proper wallet address mapping
-    let wallet_address = "placeholder_wallet_address"; // TODO: Get from user session
-    
-    let kana_client = KanaClient::new()?;
-    let orders = kana_client.get_orders(wallet_address, query.symbol.as_deref()).await?;
-
-    // Convert to our format
-    let order_responses: Vec<OrderResponse> = orders
-        .into_iter()
-        .map(|kana_order| OrderResponse {
+    // Return dummy orders
+    let order_responses: Vec<OrderResponse> = vec![
+        OrderResponse {
             id: uuid::Uuid::new_v4(),
             market_id: uuid::Uuid::new_v4(),
-            order_type: kana_order.order_type,
-            side: kana_order.side,
-            quantity: kana_order.size,
-            price: kana_order.price,
-            status: kana_order.status,
-            filled_quantity: kana_order.filled_size,
-            average_price: kana_order.average_price,
-            leverage: None, // Not provided by Kana API
-            margin_type: None, // Not provided by Kana API
-            created_at: kana_order.created_at,
-        })
-        .collect();
+            order_type: "limit".to_string(),
+            side: "buy".to_string(),
+            quantity: 10.0,
+            price: Some(8.40),
+            status: "filled".to_string(),
+            filled_quantity: 10.0,
+            average_price: Some(8.40),
+            leverage: Some(10.0),
+            margin_type: Some("isolated".to_string()),
+            created_at: chrono::Utc::now() - chrono::Duration::hours(2),
+        },
+        OrderResponse {
+            id: uuid::Uuid::new_v4(),
+            market_id: uuid::Uuid::new_v4(),
+            order_type: "market".to_string(),
+            side: "sell".to_string(),
+            quantity: 5.0,
+            price: Some(8.50),
+            status: "pending".to_string(),
+            filled_quantity: 0.0,
+            average_price: Some(0.0),
+            leverage: Some(5.0),
+            margin_type: Some("cross".to_string()),
+            created_at: chrono::Utc::now() - chrono::Duration::minutes(30),
+        },
+    ];
 
     let page = query.page.unwrap_or(1);
     let per_page = query.per_page.unwrap_or(20).min(100);
@@ -189,90 +214,99 @@ pub async fn get_orders(
     Ok(HttpResponse::Ok().json(paginated_response))
 }
 
-// Cancel an order
+// Cancel an order (dummy response)
 #[actix_web::delete("/orders/{order_id}")]
 pub async fn cancel_order(
-    order_id: web::Path<String>,
-    pool: web::Data<DbPool>,
+    _order_id: web::Path<String>,
+    _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
-    let kana_client = KanaClient::new()?;
-    kana_client.cancel_order(&order_id).await?;
-
+    // Return dummy success response
     Ok(HttpResponse::Ok().json(ApiResponse::success_with_message(
         (),
         "Order cancelled successfully".to_string(),
     )))
 }
 
-// Get user positions from Kana Labs
+// Get user positions (with dummy data)
 #[actix_web::get("/positions")]
-pub async fn get_positions(pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
-    // For now, we'll need to get the wallet address from the authenticated user
-    let wallet_address = "placeholder_wallet_address"; // TODO: Get from user session
-    
-    let kana_client = KanaClient::new()?;
-    let positions = kana_client.get_positions(wallet_address).await?;
-
-    // Convert to our format
-    let position_responses: Vec<PositionResponse> = positions
-        .into_iter()
-        .map(|kana_position| PositionResponse {
+pub async fn get_positions(_pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
+    // Return dummy positions
+    let position_responses: Vec<PositionResponse> = vec![
+        PositionResponse {
             id: uuid::Uuid::new_v4(),
             market_id: uuid::Uuid::new_v4(),
-            side: kana_position.side,
-            size: kana_position.size,
-            entry_price: kana_position.entry_price,
-            mark_price: kana_position.mark_price,
-            unrealized_pnl: kana_position.unrealized_pnl,
-            realized_pnl: kana_position.realized_pnl,
-            margin: kana_position.margin,
-            leverage: kana_position.leverage,
-            liquidation_price: kana_position.liquidation_price,
-            created_at: chrono::Utc::now(), // Not provided by Kana API
-        })
-        .collect();
+            side: "long".to_string(),
+            size: 100.0,
+            entry_price: 8.40,
+            mark_price: 8.45,
+            unrealized_pnl: 5.0,
+            realized_pnl: 0.0,
+            margin: 84.0,
+            leverage: 10.0,
+            liquidation_price: Some(7.56),
+            created_at: chrono::Utc::now() - chrono::Duration::hours(24),
+        },
+        PositionResponse {
+            id: uuid::Uuid::new_v4(),
+            market_id: uuid::Uuid::new_v4(),
+            side: "short".to_string(),
+            size: 50.0,
+            entry_price: 2650.0,
+            mark_price: 2650.30,
+            unrealized_pnl: -15.0,
+            realized_pnl: 0.0,
+            margin: 265.0,
+            leverage: 5.0,
+            liquidation_price: Some(3180.0),
+            created_at: chrono::Utc::now() - chrono::Duration::hours(12),
+        },
+    ];
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(position_responses)))
 }
 
-// Get funding rate for a market
+// Get funding rate for a market (dummy data)
 #[actix_web::get("/funding-rate/{symbol}")]
 pub async fn get_funding_rate(
     symbol: web::Path<String>,
-    pool: web::Data<DbPool>,
+    _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
-    let kana_client = KanaClient::new()?;
-    let funding_rate = kana_client.get_funding_rate(&symbol).await?;
-
     #[derive(Serialize)]
     struct FundingRateResponse {
         symbol: String,
         funding_rate: f64,
     }
 
+    // Return dummy funding rate
     let response = FundingRateResponse {
         symbol: symbol.to_string(),
-        funding_rate,
+        funding_rate: 0.0001, // 0.01% funding rate
     };
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(response)))
 }
 
-// Get market price
+// Get market price (dummy data)
 #[actix_web::get("/price/{symbol}")]
 pub async fn get_market_price(
     symbol: web::Path<String>,
-    pool: web::Data<DbPool>,
+    _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
-    let kana_client = KanaClient::new()?;
-    let price = kana_client.get_market_price(&symbol).await?;
-
     #[derive(Serialize)]
     struct PriceResponse {
         symbol: String,
         price: f64,
         timestamp: chrono::DateTime<chrono::Utc>,
     }
+
+    // Return dummy price based on symbol
+    let price = match symbol.as_str() {
+        "APT/USDT" => 8.45,
+        "BTC/USDT" => 43250.75,
+        "ETH/USDT" => 2650.30,
+        "SOL/USDT" => 98.45,
+        _ => 100.0,
+    };
 
     let response = PriceResponse {
         symbol: symbol.to_string(),

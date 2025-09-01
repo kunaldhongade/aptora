@@ -89,7 +89,7 @@ pub async fn update_profile(
 // Get user balance from Kana Labs
 #[get("/balance")]
 pub async fn get_balance(
-    pool: web::Data<DbPool>,
+    _pool: web::Data<DbPool>,
     req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     // Extract user ID from token
@@ -103,7 +103,7 @@ pub async fn get_balance(
         .strip_prefix("Bearer ")
         .ok_or_else(|| AppError::AuthenticationError("Invalid authorization header format".to_string()))?;
     
-    let user_id = extract_user_id_from_token(token)
+    let _user_id = extract_user_id_from_token(token)
         .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))?;
     
     // For now, we'll need to get the wallet address from the user
