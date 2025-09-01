@@ -9,7 +9,7 @@ actix-web = "4.4"
 actix-cors = "0.7"
 
 # Database
-diesel = { version = "2.1", features = ["postgres", "chrono", "uuid"] }
+diesel = { version = "2.1", features = ["postgres", "chrono", "uuid", "numeric", "r2d2"] }
 diesel_migrations = "2.1"
 
 # Serialization
@@ -48,6 +48,17 @@ bcrypt = "0.15"
 
 # Validation
 validator = { version = "0.16", features = ["derive"] }
+
+# Decimal support (commented out - using f64 for now)
+# rust_decimal = { version = "1.32", features = ["serde"] }
+# rust_decimal_macros = "1.32"
+
+# URL parsing
+url = "2.4"
+
+# Aptos SDK (commented out - not available in crates.io)
+# aptos-sdk = "0.1.0"
+# aptos-types = "0.1.0"
 
 [dev-dependencies]
 tokio-test = "0.4"

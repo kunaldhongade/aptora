@@ -1,26 +1,28 @@
-# Use the official Rust image as a builder
-FROM rust:1.75 as builder
+# Multi-stage build for production
+FROM rust:1.75-slim as builder
 
-# Set the working directory
-WORKDIR /usr/src/app
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the manifests
-COPY Cargo.toml Cargo.lock ./
+# Set working directory
+WORKDIR /app
 
-# Create a dummy main.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# Copy Cargo files
+COPY Cargo.toml ./
 
 # Build dependencies
-RUN cargo build --release
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release && rm -rf src
 
-# Remove the dummy main.rs and copy the real source code
-RUN rm src/main.rs
+# Copy source code and build
 COPY . .
-
-# Build the application
 RUN cargo build --release
 
-# Create a new stage with a minimal image
+# Runtime stage
 FROM debian:bookworm-slim
 
 # Install runtime dependencies
@@ -29,29 +31,27 @@ RUN apt-get update && apt-get install -y \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN useradd -r -s /bin/false app
+# Create app user
+RUN useradd -r -s /bin/false appuser
 
-# Set the working directory
-WORKDIR /usr/local/bin
+# Set working directory
+WORKDIR /app
 
-# Copy the binary from builder stage
-COPY --from=builder /usr/src/app/target/release/aptora-backend .
+# Copy binary from builder stage
+COPY --from=builder /app/target/release/aptora-backend /app/aptora-backend
 
-# Copy migrations
-COPY --from=builder /usr/src/app/migrations ./migrations
+# Change ownership
+RUN chown -R appuser:appuser /app
 
-# Change ownership to the app user
-RUN chown app:app aptora-backend
+# Switch to non-root user
+USER appuser
 
-# Switch to the app user
-USER app
-
-# Expose the port
+# Expose port
 EXPOSE 8080
 
-# Set environment variables
-ENV RUST_LOG=info
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
 
-# Run the binary
+# Run the application
 CMD ["./aptora-backend"]

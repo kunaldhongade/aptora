@@ -1,6 +1,7 @@
 use crate::DbPool;
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
+use diesel::Connection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();

@@ -1,6 +1,6 @@
 use crate::{
     auth::{create_token, hash_password, verify_password, extract_user_id_from_token},
-    db::DbPool,
+    DbPool,
     models::{NewUser, User, UserResponse},
     schema::{users},
     utils::{AppError, success_response},
@@ -83,7 +83,7 @@ pub async fn register(
         expires_in: 86400, // 24 hours
     };
     
-    Ok(success_response(response))
+    Ok(HttpResponse::Ok().json(success_response(response)))
 }
 
 #[post("/login")]
@@ -122,7 +122,7 @@ pub async fn login(
         expires_in: 86400, // 24 hours
     };
     
-    Ok(success_response(response))
+    Ok(HttpResponse::Ok().json(success_response(response)))
 }
 
 #[get("/me")]
@@ -154,5 +154,5 @@ pub async fn me(
         .optional()?
         .ok_or_else(|| AppError::NotFoundError("User not found".to_string()))?;
     
-    Ok(success_response(user.into()))
+    Ok(HttpResponse::Ok().json(success_response(user)))
 }

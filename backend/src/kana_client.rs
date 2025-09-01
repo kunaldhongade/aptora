@@ -1,0 +1,274 @@
+use crate::models::*;
+use crate::utils::AppError;
+use reqwest::Client;
+use serde_json::Value;
+use std::env;
+use url::Url;
+// use rust_decimal::f64;
+use chrono::{DateTime, Utc};
+
+pub struct KanaClient {
+    client: Client,
+    base_url: String,
+    api_key: String,
+}
+
+impl KanaClient {
+    pub fn new() -> Result<Self, AppError> {
+        let api_key = env::var("KANA_API_KEY")
+            .map_err(|_| AppError::ConfigurationError("KANA_API_KEY not set".to_string()))?;
+        
+        // Use the correct testnet URL from Kana Labs documentation
+        let base_url = env::var("KANA_API_BASE_URL")
+            .unwrap_or_else(|_| "https://perps-tradeapi.kanalabs.io".to_string());
+
+        Ok(Self {
+            client: Client::new(),
+            base_url,
+            api_key,
+        })
+    }
+
+    // Get all available markets
+    pub async fn get_markets(&self) -> Result<Vec<KanaMarket>, AppError> {
+        let url = format!("{}/markets", self.base_url);
+        
+        let response = self.client
+            .get(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to fetch markets: {}", e)))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {} - {}",
+                status,
+                error_text
+            )));
+        }
+
+        let markets: Vec<KanaMarket> = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse markets response: {}", e)))?;
+
+        Ok(markets)
+    }
+
+    // Get orderbook for a specific market
+    pub async fn get_orderbook(&self, symbol: &str, depth: Option<u32>) -> Result<KanaOrderbook, AppError> {
+        let depth = depth.unwrap_or(20);
+        let url = format!("{}/orderbook/{}?depth={}", self.base_url, symbol, depth);
+        
+        let response = self.client
+            .get(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to fetch orderbook: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {}",
+                response.status()
+            )));
+        }
+
+        let orderbook: KanaOrderbook = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse orderbook response: {}", e)))?;
+
+        Ok(orderbook)
+    }
+
+    // Place an order
+    pub async fn place_order(&self, order: &KanaOrderRequest) -> Result<KanaOrderResponse, AppError> {
+        let url = format!("{}/orders", self.base_url);
+        
+        let response = self.client
+            .post(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .json(order)
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to place order: {}", e)))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {} - {}",
+                status,
+                error_text
+            )));
+        }
+
+        let order_response: KanaOrderResponse = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse order response: {}", e)))?;
+
+        Ok(order_response)
+    }
+
+    // Get user positions
+    pub async fn get_positions(&self, wallet_address: &str) -> Result<Vec<KanaPosition>, AppError> {
+        let url = format!("{}/positions/{}", self.base_url, wallet_address);
+        
+        let response = self.client
+            .get(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to fetch positions: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {}",
+                response.status()
+            )));
+        }
+
+        let positions: Vec<KanaPosition> = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse positions response: {}", e)))?;
+
+        Ok(positions)
+    }
+
+    // Get user orders
+    pub async fn get_orders(&self, wallet_address: &str, symbol: Option<&str>) -> Result<Vec<KanaOrderResponse>, AppError> {
+        let mut url = format!("{}/orders/{}", self.base_url, wallet_address);
+        if let Some(sym) = symbol {
+            url.push_str(&format!("?symbol={}", sym));
+        }
+        
+        let response = self.client
+            .get(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to fetch orders: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {}",
+                response.status()
+            )));
+        }
+
+        let orders: Vec<KanaOrderResponse> = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse orders response: {}", e)))?;
+
+        Ok(orders)
+    }
+
+    // Cancel an order
+    pub async fn cancel_order(&self, order_id: &str) -> Result<(), AppError> {
+        let url = format!("{}/orders/{}", self.base_url, order_id);
+        
+        let response = self.client
+            .delete(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to cancel order: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {}",
+                response.status()
+            )));
+        }
+
+        Ok(())
+    }
+
+    // Get funding rate for a market
+    pub async fn get_funding_rate(&self, symbol: &str) -> Result<f64, AppError> {
+        let url = format!("{}/funding-rate/{}", self.base_url, symbol);
+        
+        let response = self.client
+            .get(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to fetch funding rate: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {}",
+                response.status()
+            )));
+        }
+
+        let funding_data: Value = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse funding rate response: {}", e)))?;
+
+        // Extract funding rate from response
+        let funding_rate = funding_data["fundingRate"]
+            .as_f64()
+            .ok_or_else(|| AppError::ExternalApiError("Invalid funding rate response".to_string()))?;
+
+        Ok(funding_rate)
+    }
+
+    // Get market price
+    pub async fn get_market_price(&self, symbol: &str) -> Result<f64, AppError> {
+        let url = format!("{}/price/{}", self.base_url, symbol);
+        
+        let response = self.client
+            .get(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to fetch market price: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {}",
+                response.status()
+            )));
+        }
+
+        let price_data: Value = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse price response: {}", e)))?;
+
+        // Extract price from response
+        let price = price_data["price"]
+            .as_f64()
+            .ok_or_else(|| AppError::ExternalApiError("Invalid price response".to_string()))?;
+
+        Ok(price)
+    }
+
+    // Get user balance
+    pub async fn get_balance(&self, wallet_address: &str) -> Result<Vec<Balance>, AppError> {
+        let url = format!("{}/balance/{}", self.base_url, wallet_address);
+        
+        let response = self.client
+            .get(&url)
+            .header("x-api-key", self.api_key.clone())
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to fetch balance: {}", e)))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::ExternalApiError(format!(
+                "Kana API error: {}",
+                response.status()
+            )));
+        }
+
+        let balances: Vec<Balance> = response.json().await
+            .map_err(|e| AppError::ExternalApiError(format!("Failed to parse balance response: {}", e)))?;
+
+        Ok(balances)
+    }
+}

@@ -12,42 +12,41 @@ mod handlers;
 mod models;
 mod schema;
 mod utils;
+mod kana_client;
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Load environment variables
     dotenv().ok();
-    
-    // Initialize logging
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    
-    // Database connection pool
+
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let bind_address = format!("{}:{}", host, port);
+
+    // Create database connection pool
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     let pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool");
-    
+
     // Run database migrations
-    info!("Running database migrations...");
-    db::run_migrations(&pool).expect("Failed to run migrations");
-    
-    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-    let bind_address = format!("{}:{}", host, port);
-    
+    if let Err(e) = db::run_migrations(&pool) {
+        log::error!("Failed to run migrations: {}", e);
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+    }
+
     info!("Starting server at {}", bind_address);
-    
+
     HttpServer::new(move || {
-        // Configure CORS
         let cors = Cors::default()
             .allow_any_origin()
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
-        
+
         App::new()
             .wrap(Logger::default())
             .wrap(cors)
@@ -67,6 +66,10 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::trading::get_orderbook)
                             .service(handlers::trading::place_order)
                             .service(handlers::trading::get_orders)
+                            .service(handlers::trading::cancel_order)
+                            .service(handlers::trading::get_positions)
+                            .service(handlers::trading::get_funding_rate)
+                            .service(handlers::trading::get_market_price)
                     )
                     .service(
                         web::scope("/user")

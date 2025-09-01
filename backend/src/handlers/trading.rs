@@ -1,266 +1,284 @@
-use crate::{
-    auth::extract_user_id_from_token,
-    db::DbPool,
-    models::{Market, MarketResponse, NewOrder, Order, OrderResponse},
-    schema::{markets, orders},
-    utils::{AppError, success_response, paginated_response},
-};
-use actix_web::{get, post, web, HttpRequest, HttpResponse, Query};
+use crate::DbPool;
+use crate::models::*;
+use crate::utils::{ApiResponse, AppError, PaginatedResponse};
+use crate::kana_client::KanaClient;
+use actix_web::{web, HttpResponse};
 use diesel::prelude::*;
+use diesel::r2d2::ConnectionManager;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use validator::Validate;
+// use rust_decimal::Decimal;
+// use rust_decimal_macros::dec;
 
-#[derive(Debug, Deserialize)]
-pub struct OrderbookQuery {
-    pub market_id: Uuid,
-    pub depth: Option<i32>,
+// Request models
+#[derive(Debug, Deserialize, Validate)]
+pub struct PlaceOrderRequest {
+    #[validate(length(min = 1))]
+    pub symbol: String,
+    #[validate(length(min = 1))]
+    pub side: String, // "buy" or "sell"
+    #[validate(length(min = 1))]
+    pub order_type: String, // "market" or "limit"
+    #[validate(range(min = 0.001))]
+    pub size: f64,
+    pub price: Option<f64>,
+    pub leverage: Option<f64>,
+    pub margin_type: Option<String>, // "isolated" or "cross"
 }
 
 #[derive(Debug, Deserialize, Validate)]
-pub struct PlaceOrderRequest {
-    pub market_id: Uuid,
+pub struct GetOrderbookRequest {
     #[validate(length(min = 1))]
-    pub order_type: String, // "market", "limit", "stop"
-    #[validate(length(min = 1))]
-    pub side: String, // "buy", "sell"
-    #[validate(range(min = 0.0))]
-    pub quantity: f64,
-    pub price: Option<f64>,
+    pub symbol: String,
+    pub depth: Option<u32>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct OrdersQuery {
-    pub market_id: Option<Uuid>,
+#[derive(Debug, Deserialize, Validate)]
+pub struct GetOrdersQuery {
+    pub symbol: Option<String>,
     pub status: Option<String>,
     pub page: Option<i64>,
     pub per_page: Option<i64>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct OrderbookEntry {
-    pub price: f64,
-    pub quantity: f64,
-    pub total: f64,
+// Get all markets from Kana Labs
+#[actix_web::get("/markets")]
+pub async fn get_markets(pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
+    let kana_client = KanaClient::new()?;
+    let markets = kana_client.get_markets().await?;
+
+    // Convert Kana markets to our format
+    let market_responses: Vec<MarketResponse> = markets
+        .into_iter()
+        .map(|kana_market| MarketResponse {
+            id: uuid::Uuid::new_v4(), // Generate a local ID
+            symbol: kana_market.symbol,
+            base_asset: kana_market.base_asset,
+            quote_asset: kana_market.quote_asset,
+            min_order_size: 0.001, // Default minimum
+            max_order_size: 1000000.0, // Default maximum
+            tick_size: 0.01, // Default tick size
+            is_active: true,
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(market_responses)))
 }
 
-#[derive(Debug, Serialize)]
-pub struct OrderbookResponse {
-    pub market_id: Uuid,
-    pub bids: Vec<OrderbookEntry>,
-    pub asks: Vec<OrderbookEntry>,
-    pub last_updated: String,
-}
-
-#[get("/markets")]
-pub async fn get_markets(
-    pool: web::Data<DbPool>,
-) -> Result<HttpResponse, AppError> {
-    let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
-    
-    let markets = markets::table
-        .filter(markets::is_active.eq(true))
-        .load::<Market>(conn)?;
-    
-    let market_responses: Vec<MarketResponse> = markets.into_iter().map(|m| m.into()).collect();
-    
-    Ok(success_response(market_responses))
-}
-
-#[get("/orderbook")]
+// Get orderbook for a specific market
+#[actix_web::get("/orderbook/{symbol}")]
 pub async fn get_orderbook(
+    query: web::Query<GetOrderbookRequest>,
     pool: web::Data<DbPool>,
-    query: Query<OrderbookQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
-    
-    // Verify market exists
-    let market = markets::table
-        .find(query.market_id)
-        .first::<Market>(conn)
-        .optional()?
-        .ok_or_else(|| AppError::NotFoundError("Market not found".to_string()))?;
-    
-    if !market.is_active {
-        return Err(AppError::ValidationError("Market is not active".to_string()));
-    }
-    
-    let depth = query.depth.unwrap_or(20);
-    
-    // Get pending buy orders (bids)
-    let bids = orders::table
-        .filter(orders::market_id.eq(query.market_id))
-        .filter(orders::side.eq("buy"))
-        .filter(orders::status.eq("pending"))
-        .order(orders::price.desc())
-        .limit(depth)
-        .load::<Order>(conn)?;
-    
-    // Get pending sell orders (asks)
-    let asks = orders::table
-        .filter(orders::market_id.eq(query.market_id))
-        .filter(orders::side.eq("sell"))
-        .filter(orders::status.eq("pending"))
-        .order(orders::price.asc())
-        .limit(depth)
-        .load::<Order>(conn)?;
-    
-    // Aggregate orders by price
-    let mut bid_map = std::collections::HashMap::new();
-    for bid in bids {
-        *bid_map.entry(bid.price.unwrap_or(0.0)).or_insert(0.0) += bid.quantity - bid.filled_quantity;
-    }
-    
-    let mut ask_map = std::collections::HashMap::new();
-    for ask in asks {
-        *ask_map.entry(ask.price.unwrap_or(0.0)).or_insert(0.0) += ask.quantity - ask.filled_quantity;
-    }
-    
-    // Convert to sorted vectors
-    let mut bids: Vec<OrderbookEntry> = bid_map
+    query.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    let kana_client = KanaClient::new()?;
+    let orderbook = kana_client.get_orderbook(&query.symbol, query.depth).await?;
+
+    // Convert Kana orderbook to our format
+    let bids: Vec<OrderbookEntry> = orderbook.bids
         .into_iter()
-        .map(|(price, quantity)| OrderbookEntry {
-            price,
-            quantity,
-            total: price * quantity,
+        .map(|entry| OrderbookEntry {
+            price: entry.price,
+            quantity: entry.size,
+            total: entry.price * entry.size,
         })
         .collect();
-    bids.sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap());
-    
-    let mut asks: Vec<OrderbookEntry> = ask_map
+
+    let asks: Vec<OrderbookEntry> = orderbook.asks
         .into_iter()
-        .map(|(price, quantity)| OrderbookEntry {
-            price,
-            quantity,
-            total: price * quantity,
+        .map(|entry| OrderbookEntry {
+            price: entry.price,
+            quantity: entry.size,
+            total: entry.price * entry.size,
         })
         .collect();
-    asks.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
-    
-    let response = OrderbookResponse {
-        market_id: query.market_id,
+
+    let orderbook_response = OrderbookResponse {
+        market_id: uuid::Uuid::new_v4(), // Generate a local ID
         bids,
         asks,
-        last_updated: chrono::Utc::now().to_rfc3339(),
+        last_updated: orderbook.timestamp,
     };
-    
-    Ok(success_response(response))
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(orderbook_response)))
 }
 
-#[post("/orders")]
+// Place an order through Kana Labs
+#[actix_web::post("/orders")]
 pub async fn place_order(
+    order_data: web::Json<PlaceOrderRequest>,
     pool: web::Data<DbPool>,
-    req: HttpRequest,
-    order_req: web::Json<PlaceOrderRequest>,
 ) -> Result<HttpResponse, AppError> {
-    // Validate request
-    order_req.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
+    let order_data = order_data.into_inner();
+    order_data.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    let kana_client = KanaClient::new()?;
     
-    // Extract user ID from token
-    let auth_header = req
-        .headers()
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(|| AppError::AuthenticationError("Missing authorization header".to_string()))?;
-    
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| AppError::AuthenticationError("Invalid authorization header format".to_string()))?;
-    
-    let user_id = extract_user_id_from_token(token)
-        .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))?;
-    
-    let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
-    
-    // Verify market exists and is active
-    let market = markets::table
-        .find(order_req.market_id)
-        .first::<Market>(conn)
-        .optional()?
-        .ok_or_else(|| AppError::NotFoundError("Market not found".to_string()))?;
-    
-    if !market.is_active {
-        return Err(AppError::ValidationError("Market is not active".to_string()));
-    }
-    
-    // Validate order parameters
-    if order_req.quantity < market.min_order_size || order_req.quantity > market.max_order_size {
-        return Err(AppError::ValidationError(format!(
-            "Order quantity must be between {} and {}",
-            market.min_order_size, market.max_order_size
-        )));
-    }
-    
-    // Create new order
-    let new_order = NewOrder {
-        user_id,
-        market_id: order_req.market_id,
-        order_type: order_req.order_type.clone(),
-        side: order_req.side.clone(),
-        quantity: order_req.quantity,
-        price: order_req.price,
-        status: "pending".to_string(),
-        filled_quantity: 0.0,
-        average_price: None,
+    // Convert to Kana Labs format
+    let kana_order = KanaOrderRequest {
+        symbol: order_data.symbol.clone(),
+        side: order_data.side.clone(),
+        order_type: order_data.order_type.clone(),
+        size: order_data.size,
+        price: order_data.price,
+        leverage: order_data.leverage,
+        margin_type: order_data.margin_type.clone(),
     };
-    
-    let order: Order = diesel::insert_into(orders::table)
-        .values(&new_order)
-        .get_result(conn)?;
-    
-    Ok(success_response(order.into()))
+
+    let kana_response = kana_client.place_order(&kana_order).await?;
+
+    // Convert response to our format
+    let order_response = OrderResponse {
+        id: uuid::Uuid::new_v4(), // Generate a local ID
+        market_id: uuid::Uuid::new_v4(), // Generate a local market ID
+        order_type: kana_response.order_type,
+        side: kana_response.side,
+        quantity: kana_response.size,
+        price: kana_response.price,
+        status: kana_response.status,
+        filled_quantity: kana_response.filled_size,
+        average_price: kana_response.average_price,
+        leverage: order_data.leverage,
+        margin_type: order_data.margin_type.clone(),
+        created_at: kana_response.created_at,
+    };
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(order_response)))
 }
 
-#[get("/orders")]
+// Get user orders from Kana Labs
+#[actix_web::get("/orders")]
 pub async fn get_orders(
+    query: web::Query<GetOrdersQuery>,
     pool: web::Data<DbPool>,
-    req: HttpRequest,
-    query: Query<OrdersQuery>,
 ) -> Result<HttpResponse, AppError> {
-    // Extract user ID from token
-    let auth_header = req
-        .headers()
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(|| AppError::AuthenticationError("Missing authorization header".to_string()))?;
+    // For now, we'll need to get the wallet address from the authenticated user
+    // This is a placeholder - you'll need to implement proper wallet address mapping
+    let wallet_address = "placeholder_wallet_address"; // TODO: Get from user session
     
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| AppError::AuthenticationError("Invalid authorization header format".to_string()))?;
-    
-    let user_id = extract_user_id_from_token(token)
-        .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))?;
-    
-    let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
-    
+    let kana_client = KanaClient::new()?;
+    let orders = kana_client.get_orders(wallet_address, query.symbol.as_deref()).await?;
+
+    // Convert to our format
+    let order_responses: Vec<OrderResponse> = orders
+        .into_iter()
+        .map(|kana_order| OrderResponse {
+            id: uuid::Uuid::new_v4(),
+            market_id: uuid::Uuid::new_v4(),
+            order_type: kana_order.order_type,
+            side: kana_order.side,
+            quantity: kana_order.size,
+            price: kana_order.price,
+            status: kana_order.status,
+            filled_quantity: kana_order.filled_size,
+            average_price: kana_order.average_price,
+            leverage: None, // Not provided by Kana API
+            margin_type: None, // Not provided by Kana API
+            created_at: kana_order.created_at,
+        })
+        .collect();
+
     let page = query.page.unwrap_or(1);
-    let per_page = query.per_page.unwrap_or(20).min(100); // Max 100 per page
-    let offset = (page - 1) * per_page;
+    let per_page = query.per_page.unwrap_or(20).min(100);
+    let total = order_responses.len() as i64;
+
+    let paginated_response = PaginatedResponse::new(order_responses, page, per_page, total);
+
+    Ok(HttpResponse::Ok().json(paginated_response))
+}
+
+// Cancel an order
+#[actix_web::delete("/orders/{order_id}")]
+pub async fn cancel_order(
+    order_id: web::Path<String>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, AppError> {
+    let kana_client = KanaClient::new()?;
+    kana_client.cancel_order(&order_id).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success_with_message(
+        (),
+        "Order cancelled successfully".to_string(),
+    )))
+}
+
+// Get user positions from Kana Labs
+#[actix_web::get("/positions")]
+pub async fn get_positions(pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
+    // For now, we'll need to get the wallet address from the authenticated user
+    let wallet_address = "placeholder_wallet_address"; // TODO: Get from user session
     
-    // Build query
-    let mut query_builder = orders::table
-        .filter(orders::user_id.eq(user_id))
-        .into_boxed();
-    
-    if let Some(market_id) = query.market_id {
-        query_builder = query_builder.filter(orders::market_id.eq(market_id));
+    let kana_client = KanaClient::new()?;
+    let positions = kana_client.get_positions(wallet_address).await?;
+
+    // Convert to our format
+    let position_responses: Vec<PositionResponse> = positions
+        .into_iter()
+        .map(|kana_position| PositionResponse {
+            id: uuid::Uuid::new_v4(),
+            market_id: uuid::Uuid::new_v4(),
+            side: kana_position.side,
+            size: kana_position.size,
+            entry_price: kana_position.entry_price,
+            mark_price: kana_position.mark_price,
+            unrealized_pnl: kana_position.unrealized_pnl,
+            realized_pnl: kana_position.realized_pnl,
+            margin: kana_position.margin,
+            leverage: kana_position.leverage,
+            liquidation_price: kana_position.liquidation_price,
+            created_at: chrono::Utc::now(), // Not provided by Kana API
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(position_responses)))
+}
+
+// Get funding rate for a market
+#[actix_web::get("/funding-rate/{symbol}")]
+pub async fn get_funding_rate(
+    symbol: web::Path<String>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, AppError> {
+    let kana_client = KanaClient::new()?;
+    let funding_rate = kana_client.get_funding_rate(&symbol).await?;
+
+    #[derive(Serialize)]
+    struct FundingRateResponse {
+        symbol: String,
+        funding_rate: f64,
     }
-    
-    if let Some(ref status) = query.status {
-        query_builder = query_builder.filter(orders::status.eq(status));
+
+    let response = FundingRateResponse {
+        symbol: symbol.to_string(),
+        funding_rate,
+    };
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(response)))
+}
+
+// Get market price
+#[actix_web::get("/price/{symbol}")]
+pub async fn get_market_price(
+    symbol: web::Path<String>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, AppError> {
+    let kana_client = KanaClient::new()?;
+    let price = kana_client.get_market_price(&symbol).await?;
+
+    #[derive(Serialize)]
+    struct PriceResponse {
+        symbol: String,
+        price: f64,
+        timestamp: chrono::DateTime<chrono::Utc>,
     }
-    
-    // Get total count
-    let total = query_builder.clone().count().get_result::<i64>(conn)?;
-    
-    // Get orders with pagination
-    let orders = query_builder
-        .order(orders::created_at.desc())
-        .offset(offset)
-        .limit(per_page)
-        .load::<Order>(conn)?;
-    
-    let order_responses: Vec<OrderResponse> = orders.into_iter().map(|o| o.into()).collect();
-    
-    Ok(paginated_response(order_responses, page, per_page, total))
+
+    let response = PriceResponse {
+        symbol: symbol.to_string(),
+        price,
+        timestamp: chrono::Utc::now(),
+    };
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(response)))
 }

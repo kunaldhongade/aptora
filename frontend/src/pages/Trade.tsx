@@ -1,207 +1,207 @@
-import React, { useState } from 'react';
-import { OrderEntry } from '../components/trading/OrderEntry';
+import React, { useEffect, useState } from 'react';
 import { Chart } from '../components/trading/Chart';
 import { Orderbook } from '../components/trading/Orderbook';
-import { Button } from '../components/ui/Button';
-import { clsx } from 'clsx';
-import { motion } from 'framer-motion';
+import { OrderEntry } from '../components/trading/OrderEntry';
+import { Card } from '../components/ui/Card';
+import { apiClient, MarketResponse, OrderbookResponse } from '../lib/api';
 
-export const Trade: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'positions' | 'orders' | 'history'>('positions');
+const Trade: React.FC = () => {
+  const [selectedMarket, setSelectedMarket] = useState<MarketResponse | null>(null);
+  const [markets, setMarkets] = useState<MarketResponse[]>([]);
+  const [orderbook, setOrderbook] = useState<OrderbookResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const symbol = 'BTC-USDT';
-  const currentPrice = 64250;
+  useEffect(() => {
+    fetchMarkets();
+  }, []);
 
-  // Mock data
-  const chartData = Array.from({ length: 50 }, (_, i) => ({
+  useEffect(() => {
+    if (selectedMarket) {
+      fetchOrderbook(selectedMarket.symbol);
+    }
+  }, [selectedMarket]);
+
+  const fetchMarkets = async () => {
+    try {
+      setLoading(true);
+      const marketsData = await apiClient.getMarkets();
+      setMarkets(marketsData);
+      if (marketsData.length > 0) {
+        setSelectedMarket(marketsData[0]);
+      }
+    } catch (err) {
+      setError('Failed to fetch markets');
+      console.error('Error fetching markets:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOrderbook = async (symbol: string) => {
+    try {
+      const orderbookData = await apiClient.getOrderbook(symbol, 20);
+      setOrderbook(orderbookData);
+    } catch (err) {
+      console.error('Error fetching orderbook:', err);
+    }
+  };
+
+  // Convert API orderbook format to component format
+  const convertOrderbookData = (apiOrderbook: OrderbookResponse) => {
+    return {
+      bids: apiOrderbook.bids.map(bid => ({
+        price: bid.price,
+        size: bid.quantity,
+        total: bid.total
+      })),
+      asks: apiOrderbook.asks.map(ask => ({
+        price: ask.price,
+        size: ask.quantity,
+        total: ask.total
+      }))
+    };
+  };
+
+  // Mock chart data for now
+  const mockChartData = Array.from({ length: 50 }, (_, i) => ({
     time: Date.now() - (50 - i) * 60000,
-    open: currentPrice + Math.random() * 1000 - 500,
-    high: currentPrice + Math.random() * 1200 - 400,
-    low: currentPrice + Math.random() * 800 - 600,
-    close: currentPrice + Math.random() * 1000 - 500,
+    open: 50000 + Math.random() * 1000 - 500,
+    high: 50000 + Math.random() * 1200 - 400,
+    low: 50000 + Math.random() * 800 - 600,
+    close: 50000 + Math.random() * 1000 - 500,
     volume: Math.random() * 1000000,
   }));
 
-  const mockBids = Array.from({ length: 15 }, (_, i) => ({
-    price: currentPrice - (i + 1) * 10,
-    size: Math.floor(Math.random() * 50) + 10,
-    total: Math.floor(Math.random() * 500) + 100,
-  }));
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="text-center">Loading markets...</div>
+      </div>
+    );
+  }
 
-  const mockAsks = Array.from({ length: 15 }, (_, i) => ({
-    price: currentPrice + (i + 1) * 10,
-    size: Math.floor(Math.random() * 50) + 10,
-    total: Math.floor(Math.random() * 500) + 100,
-  }));
-
-  const positions = [
-    { symbol: 'BTC-USDT', side: 'Long', size: 1000, entry: 62000, mark: 64250, pnl: 2250, margin: 620 },
-    { symbol: 'ETH-USDT', side: 'Short', size: 5000, entry: 3500, mark: 3421, pnl: 395, margin: 1750 },
-  ];
-
-  const orders = [
-    { symbol: 'SOL-USDT', type: 'Limit', side: 'Buy', size: 100, price: 150, status: 'Open' },
-  ];
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="text-center text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-full">
-      {/* Desktop Layout */}
-      <div className="hidden lg:grid lg:grid-cols-12 gap-6 h-full">
-        {/* Order Entry */}
-        <div className="col-span-3">
-          <OrderEntry symbol={symbol} price={currentPrice} />
-        </div>
-        
-        {/* Chart */}
-        <div className="col-span-6">
-          <Chart symbol={symbol} data={chartData} className="h-full" />
-        </div>
-        
-        {/* Orderbook */}
-        <div className="col-span-3">
-          <Orderbook 
-            bids={mockBids}
-            asks={mockAsks}
-            currentPrice={currentPrice}
-            className="h-full"
-          />
-        </div>
+    <div className="container mx-auto px-4 py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">Trade</h1>
+        <p className="text-gray-400">Trade perpetual futures with leverage</p>
       </div>
 
-      {/* Mobile/Tablet Layout */}
-      <div className="lg:hidden space-y-6">
-        {/* Chart */}
-        <Chart symbol={symbol} data={chartData} />
-        
-        {/* Order Entry */}
-        <OrderEntry symbol={symbol} price={currentPrice} />
-        
-        {/* Orderbook */}
-        <Orderbook 
-          bids={mockBids.slice(0, 8)}
-          asks={mockAsks.slice(0, 8)}
-          currentPrice={currentPrice}
-        />
-      </div>
-
-      {/* Bottom Panel - Positions/Orders */}
-      <div className="mt-6 bg-surface-700 rounded-2xl border border-surface-600">
-        <div className="flex border-b border-surface-600">
-          {(['positions', 'orders', 'history'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={clsx(
-                'flex-1 py-3 px-4 text-sm font-medium capitalize transition-colors',
-                activeTab === tab
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-muted hover:text-text-default'
-              )}
-            >
-              {tab}
-            </button>
+      {/* Market Selector */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-2">Select Market</label>
+        <select
+          value={selectedMarket?.symbol || ''}
+          onChange={(e) => {
+            const market = markets.find(m => m.symbol === e.target.value);
+            setSelectedMarket(market || null);
+          }}
+          className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          {markets.map((market) => (
+            <option key={market.symbol} value={market.symbol}>
+              {market.symbol} ({market.base_asset}/{market.quote_asset})
+            </option>
           ))}
-        </div>
-
-        <div className="p-4">
-          {activeTab === 'positions' && (
-            <div className="space-y-2">
-              {positions.length === 0 ? (
-                <div className="text-center py-8 text-muted">
-                  No open positions
-                </div>
-              ) : (
-                positions.map((position, index) => (
-                  <motion.div
-                    key={position.symbol}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="bg-bg-800 rounded-lg p-3"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-text-default">{position.symbol}</span>
-                      <span className={clsx(
-                        'text-sm font-medium px-2 py-1 rounded',
-                        position.side === 'Long' 
-                          ? 'bg-success/20 text-success' 
-                          : 'bg-danger/20 text-danger'
-                      )}>
-                        {position.side}
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted block">Size</span>
-                        <span className="font-mono">${position.size}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted block">Entry</span>
-                        <span className="font-mono">${position.entry}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted block">Mark</span>
-                        <span className="font-mono">${position.mark}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted block">PnL</span>
-                        <span className={clsx(
-                          'font-mono font-semibold',
-                          position.pnl >= 0 ? 'text-success' : 'text-danger'
-                        )}>
-                          {position.pnl >= 0 ? '+' : ''}${position.pnl}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'orders' && (
-            <div className="space-y-2">
-              {orders.length === 0 ? (
-                <div className="text-center py-8 text-muted">
-                  No open orders
-                </div>
-              ) : (
-                orders.map((order, index) => (
-                  <motion.div
-                    key={`${order.symbol}-${order.price}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="bg-bg-800 rounded-lg p-3 flex items-center justify-between"
-                  >
-                    <div>
-                      <span className="font-semibold text-text-default">{order.symbol}</span>
-                      <div className="text-sm text-muted">
-                        {order.type} {order.side} ${order.size} @ ${order.price}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded">
-                        {order.status}
-                      </span>
-                      <Button variant="ghost" size="sm">
-                        Cancel
-                      </Button>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'history' && (
-            <div className="text-center py-8 text-muted">
-              No trade history
-            </div>
-          )}
-        </div>
+        </select>
       </div>
+
+      {selectedMarket && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Chart */}
+          <div className="lg:col-span-2">
+            <Card>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-4">{selectedMarket.symbol} Chart</h3>
+                <Chart
+                  data={mockChartData}
+                  symbol={selectedMarket.symbol}
+                />
+              </div>
+            </Card>
+          </div>
+
+          {/* Order Entry */}
+          <div>
+            <Card>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-4">Place Order</h3>
+                <OrderEntry
+                  symbol={selectedMarket.symbol}
+                  price={50000} // TODO: Get real-time price
+                />
+              </div>
+            </Card>
+          </div>
+
+          {/* Orderbook */}
+          <div className="lg:col-span-2">
+            <Card>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-4">Orderbook</h3>
+                {orderbook ? (
+                  <Orderbook
+                    {...convertOrderbookData(orderbook)}
+                    currentPrice={50000} // TODO: Get real-time price
+                    onPriceClick={(price: number) => {
+                      // TODO: Fill price in order entry
+                      console.log('Selected price:', price);
+                    }}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-gray-400">Loading orderbook...</div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Market Info */}
+          <div>
+            <Card>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-4">Market Info</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Symbol:</span>
+                    <span>{selectedMarket.symbol}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Base Asset:</span>
+                    <span>{selectedMarket.base_asset}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Quote Asset:</span>
+                    <span>{selectedMarket.quote_asset}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Min Order:</span>
+                    <span>{selectedMarket.min_order_size}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Max Order:</span>
+                    <span>{selectedMarket.max_order_size}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Tick Size:</span>
+                    <span>{selectedMarket.tick_size}</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+export default Trade;

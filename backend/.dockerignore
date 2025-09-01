@@ -1,0 +1,8 @@
+target/
+Cargo.lock
+*.log
+.env
+.git/
+.gitignore
+README.md
+

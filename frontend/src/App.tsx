@@ -1,50 +1,45 @@
 import React, { useState } from 'react';
-import { Header } from './components/layout/Header';
-import { BottomNav } from './components/layout/BottomNav';
-import { Dashboard } from './pages/Dashboard';
-import { Markets } from './pages/Markets';
-import { Trade } from './pages/Trade';
-import { Leaderboard } from './pages/Leaderboard';
-import { Vaults } from './pages/Vaults';
-import { Referrals } from './pages/Referrals';
+import BottomNav from './components/layout/BottomNav';
+import Header from './components/layout/Header';
+import { AuthProvider } from './contexts/AuthContext';
+import Dashboard from './pages/Dashboard';
+import Leaderboard from './pages/Leaderboard';
+import Markets from './pages/Markets';
+import Referrals from './pages/Referrals';
+import Trade from './pages/Trade';
+import Vaults from './pages/Vaults';
 import './styles/globals.css';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'trade' | 'markets' | 'vaults' | 'referrals'>('dashboard');
 
-  const renderCurrentPage = () => {
-    switch (currentPage) {
+  const renderContent = () => {
+    switch (activeTab) {
       case 'dashboard':
         return <Dashboard />;
-      case 'markets':
-        return <Markets />;
       case 'trade':
         return <Trade />;
-      case 'leaderboard':
-        return <Leaderboard />;
+      case 'markets':
+        return <Markets />;
       case 'vaults':
         return <Vaults />;
       case 'referrals':
         return <Referrals />;
-      case 'portfolio':
-        return <div className="text-center py-12 text-muted">Portfolio page coming soon...</div>;
-      case 'settings':
-        return <div className="text-center py-12 text-muted">Settings page coming soon...</div>;
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-bg-900 text-text-default">
-      <Header currentPage={currentPage} onNavigate={setCurrentPage} />
-      
-      <main className="container mx-auto px-4 py-6 pb-20 md:pb-6 max-w-7xl">
-        {renderCurrentPage()}
-      </main>
-      
-      <BottomNav currentPage={currentPage} onNavigate={setCurrentPage} />
-    </div>
+    <AuthProvider>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Header />
+        <main className="pb-20">
+          {renderContent()}
+        </main>
+        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+    </AuthProvider>
   );
 }
 
