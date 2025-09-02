@@ -1,18 +1,12 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
-import { TraderCard } from '../components/ui/Card';
+import { motion } from 'framer-motion';
+import { Filter, Search } from 'lucide-react';
+import React, { useState } from 'react';
 import { Button } from '../components/ui/Button';
-import { Search, Filter } from 'lucide-react';
+import { TraderCard } from '../components/ui/Card';
 
-const mockTraders = [
-  { handle: 'cryptoking', pnl: 23.5, winRate: 78, aum: '2.4M', rank: 1 },
-  { handle: 'degentrader', pnl: 18.2, winRate: 65, aum: '1.8M', rank: 2 },
-  { handle: 'yieldmaster', pnl: 15.8, winRate: 82, aum: '5.1M', rank: 3 },
-  { handle: 'moonfarmer', pnl: 12.4, winRate: 71, aum: '890K', rank: 4 },
-  { handle: 'riskmanager', pnl: 9.7, winRate: 85, aum: '3.2M', rank: 5 },
-  { handle: 'scalperbot', pnl: 8.1, winRate: 62, aum: '1.1M', rank: 6 },
-];
+// Placeholder data - will be replaced with backend data when leaderboard endpoints are available
+const mockTraders: any[] = [];
 
 export const Leaderboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +26,7 @@ export const Leaderboard: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text-default mb-4">Leaderboard</h1>
-        
+
         <div className="space-y-4">
           {/* Search */}
           <div className="relative">
@@ -45,7 +39,7 @@ export const Leaderboard: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 bg-surface-700 border border-surface-600 rounded-lg text-text-default placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
-          
+
           {/* Sort Options */}
           <div className="flex gap-2">
             {sortOptions.map((option) => (
@@ -72,9 +66,9 @@ export const Leaderboard: React.FC = () => {
           const podiumOrder = [1, 0, 2]; // Second, First, Third for visual hierarchy
           const actualIndex = podiumOrder[index];
           const actualTrader = filteredTraders[actualIndex];
-          
+
           if (!actualTrader) return null;
-          
+
           return (
             <motion.div
               key={actualTrader.handle}
@@ -95,7 +89,7 @@ export const Leaderboard: React.FC = () => {
               )}>
                 #{actualTrader.rank}
               </div>
-              
+
               <TraderCard {...actualTrader} />
             </motion.div>
           );
@@ -116,16 +110,16 @@ export const Leaderboard: React.FC = () => {
               <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-black font-bold text-sm">
                 #{trader.rank}
               </div>
-              
+
               <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center text-black font-bold">
                 {trader.handle.slice(0, 2).toUpperCase()}
               </div>
-              
+
               <div className="flex-1">
                 <h3 className="font-semibold text-text-default">@{trader.handle}</h3>
                 <p className="text-sm text-muted">AUM ${trader.aum}</p>
               </div>
-              
+
               <div className="text-right mr-4">
                 <div className={clsx(
                   'text-lg font-mono font-semibold',
@@ -137,7 +131,7 @@ export const Leaderboard: React.FC = () => {
                   {trader.winRate}% win rate
                 </div>
               </div>
-              
+
               <Button variant="primary" size="sm">
                 Copy
               </Button>

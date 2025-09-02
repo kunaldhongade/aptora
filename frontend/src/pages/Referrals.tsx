@@ -6,27 +6,25 @@ import { Button } from '../components/ui/Button';
 
 export const Referrals: React.FC = () => {
   const [copied, setCopied] = useState(false);
+
+  // Placeholder data - will be replaced with backend data when endpoints are available
   const referralCode = 'APTORA-KING123';
   const referralLink = `https://aptora.com/ref/${referralCode}`;
 
   const stats = {
-    totalReferred: 24,
-    totalEarned: 1456.78,
-    currentTier: 'Gold',
-    nextTier: 'Platinum',
-    progressToNext: 65,
+    totalReferred: 0,
+    totalEarned: 0,
+    currentTier: 'Bronze',
+    nextTier: 'Silver',
+    progressToNext: 0,
   };
 
-  const recentReferrals = [
-    { handle: 'newtrader1', date: '2 hours ago', commission: 23.45, status: 'active' },
-    { handle: 'cryptonewb', date: '1 day ago', commission: 45.67, status: 'active' },
-    { handle: 'yolotrader', date: '3 days ago', commission: 12.34, status: 'pending' },
-  ];
+  const recentReferrals: any[] = [];
 
   const tiers = [
     { name: 'Bronze', commission: '15%', requirement: '5 referrals' },
     { name: 'Silver', commission: '20%', requirement: '15 referrals' },
-    { name: 'Gold', commission: '25%', requirement: '30 referrals', current: true },
+    { name: 'Gold', commission: '25%', requirement: '30 referrals' },
     { name: 'Platinum', commission: '30%', requirement: '50 referrals' },
   ];
 

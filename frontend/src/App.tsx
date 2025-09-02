@@ -39,7 +39,7 @@ function App() {
     <AuthProvider>
       <div className="min-h-screen bg-gray-900 text-white">
         <Header currentPage={activeTab} onNavigate={handleNavigate} />
-        <main className="pb-20">
+        <main className="px-5 py-3">
           {renderContent()}
         </main>
         <BottomNav currentPage={activeTab} onNavigate={handleNavigate} />

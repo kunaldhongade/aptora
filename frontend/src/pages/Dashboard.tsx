@@ -1,18 +1,40 @@
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { ArrowRight, TrendingUp, Users, Wallet } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { TraderCard, VaultCard } from '../components/ui/Card';
+import { apiClient } from '../lib/api';
 
 export const Dashboard: React.FC = () => {
-  const marketTickers = [
-    { symbol: 'BTC', price: '64,250', change: 2.34 },
-    { symbol: 'ETH', price: '3,421', change: -1.23 },
-    { symbol: 'SOL', price: '156', change: 5.67 },
-    { symbol: 'DOGE', price: '0.142', change: 12.45 },
-  ];
+  const [markets, setMarkets] = useState<Array<{ symbol: string; base_asset: string; quote_asset: string; is_active: boolean }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchMarkets = async () => {
+      try {
+        setLoading(true);
+        const marketsData = await apiClient.getMarkets();
+        setMarkets(marketsData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch markets');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMarkets();
+  }, []);
+
+  // Convert markets to ticker format
+  const marketTickers = markets.slice(0, 4).map(market => ({
+    symbol: market.symbol,
+    price: market.symbol, // Using symbol as placeholder since backend doesn't provide price
+    change: 0, // No change data from backend yet
+  }));
+
+  // Placeholder data for now (these would come from backend in the future)
   const topTraders = [
     { handle: 'cryptoking', pnl: 23.5, winRate: 78, aum: '2.4M' },
     { handle: 'degentrader', pnl: 18.2, winRate: 65, aum: '1.8M' },
@@ -23,6 +45,26 @@ export const Dashboard: React.FC = () => {
     { name: 'Conservative Growth', apy: '12.4%', tvl: '45.2M', riskLevel: 'low' as const, tags: ['Stable', 'DCA'] },
     { name: 'Alpha Hunter', apy: '34.7%', tvl: '12.8M', riskLevel: 'high' as const, tags: ['Momentum', 'Swing'] },
   ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="text-muted">Loading dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-400">Error: {error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
