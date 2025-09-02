@@ -3,9 +3,6 @@ use crate::utils::AppError;
 use reqwest::Client;
 use serde_json::Value;
 use std::env;
-use url::Url;
-// use rust_decimal::f64;
-use chrono::{DateTime, Utc};
 
 pub struct KanaClient {
     client: Client,

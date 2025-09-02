@@ -1,10 +1,7 @@
 use crate::DbPool;
 use crate::models::*;
 use crate::utils::{ApiResponse, AppError, PaginatedResponse};
-use crate::kana_client::KanaClient;
 use actix_web::{web, HttpResponse};
-use diesel::prelude::*;
-use diesel::r2d2::ConnectionManager;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 // use rust_decimal::Decimal;
@@ -43,7 +40,7 @@ pub struct GetOrdersQuery {
 
 // Get all markets (with dummy data for now)
 #[actix_web::get("/markets")]
-pub async fn get_markets(pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
+pub async fn get_markets(_pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
     // Return dummy market data
     let market_responses: Vec<MarketResponse> = vec![
         MarketResponse {
@@ -95,7 +92,7 @@ pub async fn get_markets(pool: web::Data<DbPool>) -> Result<HttpResponse, AppErr
 #[actix_web::get("/orderbook/{symbol}")]
 pub async fn get_orderbook(
     path: web::Path<String>,
-    query: web::Query<GetOrderbookRequest>,
+    _query: web::Query<GetOrderbookRequest>,
     _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
     let symbol = path.into_inner();

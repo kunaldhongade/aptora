@@ -18,6 +18,36 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
 }
 
+// Session Models for Refresh Tokens
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
+#[diesel(table_name = crate::schema::sessions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Session {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub refresh_token_hash: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::schema::sessions)]
+pub struct NewSession {
+    pub user_id: Uuid,
+    pub refresh_token_hash: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+// Public User Profile (without password)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfile {
+    pub id: Uuid,
+    pub email: String,
+    pub username: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::markets)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

@@ -1,16 +1,14 @@
 use crate::{
-    auth::extract_user_id_from_token,
     DbPool,
-    models::{Balance, NewBalance, User, UserResponse},
-    schema::{balances, users},
+    models::User,
+    schema::users,
     utils::{ApiResponse, AppError},
     kana_client::KanaClient,
 };
 use actix_web::{get, put, web, HttpRequest, HttpResponse};
 use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use validator::Validate;
-use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateProfileRequest {
@@ -35,8 +33,10 @@ pub async fn get_profile(
         .strip_prefix("Bearer ")
         .ok_or_else(|| AppError::AuthenticationError("Invalid authorization header format".to_string()))?;
     
-    let user_id = extract_user_id_from_token(token)
+    let claims = crate::auth::AuthService::verify_access_token(token)
         .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))?;
+    let user_id = claims.sub.parse::<uuid::Uuid>()
+        .map_err(|_| AppError::AuthenticationError("Invalid user ID in token".to_string()))?;
     
     let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
     
@@ -70,8 +70,10 @@ pub async fn update_profile(
         .strip_prefix("Bearer ")
         .ok_or_else(|| AppError::AuthenticationError("Invalid authorization header format".to_string()))?;
     
-    let user_id = extract_user_id_from_token(token)
+    let claims = crate::auth::AuthService::verify_access_token(token)
         .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))?;
+    let user_id = claims.sub.parse::<uuid::Uuid>()
+        .map_err(|_| AppError::AuthenticationError("Invalid user ID in token".to_string()))?;
     
     let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
     
@@ -103,8 +105,10 @@ pub async fn get_balance(
         .strip_prefix("Bearer ")
         .ok_or_else(|| AppError::AuthenticationError("Invalid authorization header format".to_string()))?;
     
-    let _user_id = extract_user_id_from_token(token)
+    let claims = crate::auth::AuthService::verify_access_token(token)
         .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))?;
+    let _user_id = claims.sub.parse::<uuid::Uuid>()
+        .map_err(|_| AppError::AuthenticationError("Invalid user ID in token".to_string()))?;
     
     // For now, we'll need to get the wallet address from the user
     // This is a placeholder - you'll need to implement proper wallet address mapping

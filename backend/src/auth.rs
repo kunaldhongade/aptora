@@ -1,74 +1,344 @@
-use crate::models::User;
+use crate::models::{User, NewUser, Session, NewSession, UserProfile};
+use crate::schema::{users, sessions};
+use crate::DbPool;
+use crate::utils::AppError;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use diesel::prelude::*;
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation, Algorithm};
 use serde::{Deserialize, Serialize};
-use std::env;
 use uuid::Uuid;
+use std::env;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String, // User ID
-    pub exp: i64,    // Expiration time
-    pub iat: i64,    // Issued at
+    pub sub: String, // user_id
+    pub exp: i64,    // expiration time
+    pub iat: i64,    // issued at
+    pub email: String,
+    pub username: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AuthToken {
-    pub token: String,
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RegisterRequest {
+    pub email: String,
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthResponse {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub token_type: String,
+    pub expires_in: i64,
+    pub user: UserProfile,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RefreshResponse {
+    pub access_token: String,
     pub token_type: String,
     pub expires_in: i64,
 }
 
-pub fn create_token(user_id: Uuid) -> Result<String, jsonwebtoken::errors::Error> {
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    let expiration = Utc::now()
-        .checked_add_signed(Duration::hours(24))
-        .expect("valid timestamp")
-        .timestamp();
+pub struct AuthService;
 
-    let claims = Claims {
-        sub: user_id.to_string(),
-        exp: expiration,
-        iat: Utc::now().timestamp(),
-    };
+impl AuthService {
+    pub fn new() -> Self {
+        Self
+    }
+    // Hash password using Argon2id
+    pub fn hash_password(password: &str) -> Result<String, AppError> {
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let argon2 = Argon2::default();
+        
+        argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map(|hash| hash.to_string())
+            .map_err(|e| AppError::InternalServerError(format!("Password hashing failed: {}", e)))
+    }
 
-    encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(secret.as_ref()),
-    )
-}
+    // Verify password against hash
+    pub fn verify_password(password: &str, hash: &str) -> Result<bool, AppError> {
+        let parsed_hash = PasswordHash::new(hash)
+            .map_err(|e| AppError::InternalServerError(format!("Invalid hash format: {}", e)))?;
+        
+        Ok(Argon2::default()
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_ok())
+    }
 
-pub fn verify_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
-    let secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-    let token_data = decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(secret.as_ref()),
-        &Validation::default(),
-    )?;
+    // Generate JWT access token (15 minutes)
+    pub fn generate_access_token(user: &User) -> Result<String, AppError> {
+        let secret = env::var("JWT_SECRET")
+            .map_err(|_| AppError::ConfigurationError("JWT_SECRET not set".to_string()))?;
+        
+        let now = Utc::now();
+        let expires_at = now + Duration::minutes(15);
+        
+        let claims = Claims {
+            sub: user.id.to_string(),
+            exp: expires_at.timestamp(),
+            iat: now.timestamp(),
+            email: user.email.clone(),
+            username: user.username.clone(),
+        };
+        
+        encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(secret.as_ref()),
+        )
+        .map_err(|e| AppError::InternalServerError(format!("Token generation failed: {}", e)))
+    }
 
-    Ok(token_data.claims)
-}
+    // Generate refresh token (30 days)
+    pub fn generate_refresh_token() -> String {
+        Uuid::new_v4().to_string()
+    }
 
-pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
-    let salt = bcrypt::DEFAULT_COST;
-    bcrypt::hash(password, salt)
-}
+    // Verify JWT access token
+    pub fn verify_access_token(token: &str) -> Result<Claims, AppError> {
+        let secret = env::var("JWT_SECRET")
+            .map_err(|_| AppError::ConfigurationError("JWT_SECRET not set".to_string()))?;
+        
+        let token_data = decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(secret.as_ref()),
+            &Validation::new(Algorithm::HS256),
+        )
+        .map_err(|e| AppError::Unauthorized(format!("Invalid token: {}", e)))?;
+        
+        Ok(token_data.claims)
+    }
 
-pub fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::BcryptError> {
-    bcrypt::verify(password, hash)
-}
+    // Register new user
+    pub async fn register(
+        pool: &DbPool,
+        request: RegisterRequest,
+    ) -> Result<AuthResponse, AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
 
-pub fn extract_user_id_from_token(token: &str) -> Result<Uuid, Box<dyn std::error::Error>> {
-    let claims = verify_token(token)?;
-    let user_id = Uuid::parse_str(&claims.sub)?;
-    Ok(user_id)
-}
+        // Check if email already exists
+        let existing_user = users::table
+            .filter(users::email.eq(&request.email))
+            .first::<User>(conn)
+            .optional()
+            .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?;
 
-pub fn get_auth_header_value(auth_header: &str) -> Result<String, Box<dyn std::error::Error>> {
-    if auth_header.starts_with("Bearer ") {
-        Ok(auth_header[7..].to_string())
-    } else {
-        Err("Invalid authorization header format".into())
+        if existing_user.is_some() {
+            return Err(AppError::BadRequest("Email already exists".to_string()));
+        }
+
+        // Check if username already exists
+        let existing_username = users::table
+            .filter(users::username.eq(&request.username))
+            .first::<User>(conn)
+            .optional()
+            .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?;
+
+        if existing_username.is_some() {
+            return Err(AppError::BadRequest("Username already exists".to_string()));
+        }
+
+        // Hash password
+        let password_hash = Self::hash_password(&request.password)?;
+
+        // Create new user
+        let new_user = NewUser {
+            email: request.email,
+            username: request.username,
+            password_hash,
+        };
+
+        let user: User = diesel::insert_into(users::table)
+            .values(&new_user)
+            .get_result(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to create user: {}", e)))?;
+
+        // Generate tokens
+        let access_token = Self::generate_access_token(&user)?;
+        let refresh_token = Self::generate_refresh_token();
+        let refresh_token_hash = Self::hash_password(&refresh_token)?;
+
+        // Store refresh token in sessions table
+        let session = NewSession {
+            user_id: user.id,
+            refresh_token_hash,
+            expires_at: Utc::now() + Duration::days(30),
+        };
+
+        diesel::insert_into(sessions::table)
+            .values(&session)
+            .execute(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to create session: {}", e)))?;
+
+        // Create user profile
+        let user_profile = UserProfile {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        };
+
+        Ok(AuthResponse {
+            access_token,
+            refresh_token,
+            token_type: "Bearer".to_string(),
+            expires_in: 900, // 15 minutes in seconds
+            user: user_profile,
+        })
+    }
+
+    // Login user
+    pub async fn login(
+        pool: &DbPool,
+        request: LoginRequest,
+    ) -> Result<AuthResponse, AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
+
+        // Find user by email
+        let user = users::table
+            .filter(users::email.eq(&request.email))
+            .first::<User>(conn)
+            .optional()
+            .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?
+            .ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
+
+        // Verify password
+        if !Self::verify_password(&request.password, &user.password_hash)? {
+            return Err(AppError::Unauthorized("Invalid credentials".to_string()));
+        }
+
+        // Generate tokens
+        let access_token = Self::generate_access_token(&user)?;
+        let refresh_token = Self::generate_refresh_token();
+        let refresh_token_hash = Self::hash_password(&refresh_token)?;
+
+        // Store refresh token in sessions table
+        let session = NewSession {
+            user_id: user.id,
+            refresh_token_hash,
+            expires_at: Utc::now() + Duration::days(30),
+        };
+
+        diesel::insert_into(sessions::table)
+            .values(&session)
+            .execute(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to create session: {}", e)))?;
+
+        // Create user profile
+        let user_profile = UserProfile {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        };
+
+        Ok(AuthResponse {
+            access_token,
+            refresh_token,
+            token_type: "Bearer".to_string(),
+            expires_in: 900, // 15 minutes in seconds
+            user: user_profile,
+        })
+    }
+
+    // Refresh access token
+    pub async fn refresh_token(
+        pool: &DbPool,
+        refresh_token: &str,
+    ) -> Result<RefreshResponse, AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
+
+        // Find session by refresh token hash
+        let session = sessions::table
+            .filter(sessions::refresh_token_hash.eq(&Self::hash_password(refresh_token)?))
+            .filter(sessions::expires_at.gt(Utc::now()))
+            .first::<Session>(conn)
+            .optional()
+            .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?
+            .ok_or_else(|| AppError::Unauthorized("Invalid or expired refresh token".to_string()))?;
+
+        // Get user
+        let user = users::table
+            .find(session.user_id)
+            .first::<User>(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get user: {}", e)))?;
+
+        // Generate new access token
+        let access_token = Self::generate_access_token(&user)?;
+
+        Ok(RefreshResponse {
+            access_token,
+            token_type: "Bearer".to_string(),
+            expires_in: 900, // 15 minutes in seconds
+        })
+    }
+
+    // Logout user (invalidate refresh token)
+    pub async fn logout(
+        pool: &DbPool,
+        refresh_token: &str,
+    ) -> Result<(), AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
+
+        let refresh_token_hash = Self::hash_password(refresh_token)?;
+
+        // Delete session
+        diesel::delete(sessions::table)
+            .filter(sessions::refresh_token_hash.eq(refresh_token_hash))
+            .execute(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to delete session: {}", e)))?;
+
+        Ok(())
+    }
+
+    // Get user profile by ID
+    pub async fn get_user_profile(
+        pool: &DbPool,
+        user_id: Uuid,
+    ) -> Result<UserProfile, AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
+
+        let user = users::table
+            .find(user_id)
+            .first::<User>(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get user: {}", e)))?;
+
+        Ok(UserProfile {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        })
+    }
+
+    // Clean up expired sessions
+    pub async fn cleanup_expired_sessions(pool: &DbPool) -> Result<usize, AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
+
+        let deleted_count = diesel::delete(sessions::table)
+            .filter(sessions::expires_at.lt(Utc::now()))
+            .execute(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to cleanup sessions: {}", e)))?;
+
+        Ok(deleted_count)
     }
 }

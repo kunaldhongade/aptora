@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { clsx } from 'clsx';
 import { Button } from '../ui/Button';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   Menu, 
   X, 
@@ -11,7 +12,8 @@ import {
   Gift, 
   User,
   Settings as SettingsIcon,
-  Wallet
+  Wallet,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,6 +34,7 @@ const navigation = [
 
 export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <>
@@ -70,6 +73,23 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
               <Button variant="ghost" size="sm" icon={Wallet}>
                 <span className="hidden sm:inline">Connect</span>
               </Button>
+              
+              {/* User Menu */}
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-2 text-sm">
+                  <span className="text-muted">Welcome,</span>
+                  <span className="text-text-default font-medium">{user?.username || 'User'}</span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  icon={LogOut}
+                  onClick={logout}
+                  className="text-muted hover:text-danger"
+                >
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </div>
               
               {/* Mobile Menu Button */}
               <button

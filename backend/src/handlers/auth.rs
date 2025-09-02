@@ -1,14 +1,9 @@
-use crate::{
-    auth::{create_token, hash_password, verify_password, extract_user_id_from_token},
-    DbPool,
-    models::{NewUser, User, UserResponse},
-    schema::{users},
-    utils::{AppError, success_response},
-};
-use actix_web::{get, post, web, HttpRequest, HttpResponse};
-use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use actix_web::{web, HttpResponse, HttpRequest};
+use crate::DbPool;
+use crate::auth::{AuthService, RegisterRequest as AuthRegisterRequest, LoginRequest as AuthLoginRequest};
+use crate::utils::{AppError, ApiResponse};
+
+use serde::Deserialize;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
@@ -28,109 +23,87 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct AuthResponse {
-    pub user: UserResponse,
-    pub token: String,
-    pub token_type: String,
-    pub expires_in: i64,
+#[derive(Debug, Deserialize)]
+pub struct RefreshRequest {
+    pub refresh_token: String,
 }
 
-#[post("/register")]
+#[derive(Debug, Deserialize)]
+pub struct LogoutRequest {
+    pub refresh_token: String,
+}
+
+#[actix_web::post("/register")]
 pub async fn register(
     pool: web::Data<DbPool>,
-    req: web::Json<RegisterRequest>,
+    request: web::Json<RegisterRequest>,
 ) -> Result<HttpResponse, AppError> {
     // Validate request
-    req.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
-    
-    let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
-    
-    // Check if user already exists
-    let existing_user = users::table
-        .filter(users::email.eq(&req.email))
-        .or_filter(users::username.eq(&req.username))
-        .first::<User>(conn)
-        .optional()?;
-    
-    if existing_user.is_some() {
-        return Err(AppError::ValidationError("User with this email or username already exists".to_string()));
-    }
-    
-    // Hash password
-    let password_hash = hash_password(&req.password)
-        .map_err(|_| AppError::InternalServerError("Failed to hash password".to_string()))?;
-    
-    // Create new user
-    let new_user = NewUser {
-        email: req.email.clone(),
-        username: req.username.clone(),
-        password_hash,
+    request.validate()
+        .map_err(|e| AppError::BadRequest(format!("Validation error: {}", e)))?;
+
+    // Convert to auth service request
+    let auth_request = AuthRegisterRequest {
+        email: request.email.clone(),
+        username: request.username.clone(),
+        password: request.password.clone(),
     };
-    
-    let user: User = diesel::insert_into(users::table)
-        .values(&new_user)
-        .get_result(conn)?;
-    
-    // Generate token
-    let token = create_token(user.id)
-        .map_err(|_| AppError::InternalServerError("Failed to create token".to_string()))?;
-    
-    let response = AuthResponse {
-        user: user.into(),
-        token,
-        token_type: "Bearer".to_string(),
-        expires_in: 86400, // 24 hours
-    };
-    
-    Ok(HttpResponse::Ok().json(success_response(response)))
+
+    // Register user using auth service
+    let auth_response = AuthService::register(&pool, auth_request).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(auth_response)))
 }
 
-#[post("/login")]
+#[actix_web::post("/login")]
 pub async fn login(
     pool: web::Data<DbPool>,
-    req: web::Json<LoginRequest>,
+    request: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, AppError> {
     // Validate request
-    req.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
-    
-    let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
-    
-    // Find user by email
-    let user = users::table
-        .filter(users::email.eq(&req.email))
-        .first::<User>(conn)
-        .optional()?
-        .ok_or_else(|| AppError::AuthenticationError("Invalid email or password".to_string()))?;
-    
-    // Verify password
-    let is_valid = verify_password(&req.password, &user.password_hash)
-        .map_err(|_| AppError::InternalServerError("Failed to verify password".to_string()))?;
-    
-    if !is_valid {
-        return Err(AppError::AuthenticationError("Invalid email or password".to_string()));
-    }
-    
-    // Generate token
-    let token = create_token(user.id)
-        .map_err(|_| AppError::InternalServerError("Failed to create token".to_string()))?;
-    
-    let response = AuthResponse {
-        user: user.into(),
-        token,
-        token_type: "Bearer".to_string(),
-        expires_in: 86400, // 24 hours
+    request.validate()
+        .map_err(|e| AppError::BadRequest(format!("Validation error: {}", e)))?;
+
+    // Convert to auth service request
+    let auth_request = AuthLoginRequest {
+        email: request.email.clone(),
+        password: request.password.clone(),
     };
-    
-    Ok(HttpResponse::Ok().json(success_response(response)))
+
+    // Login user using auth service
+    let auth_response = AuthService::login(&pool, auth_request).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(auth_response)))
 }
 
-#[get("/me")]
+#[actix_web::post("/refresh")]
+pub async fn refresh(
+    pool: web::Data<DbPool>,
+    request: web::Json<RefreshRequest>,
+) -> Result<HttpResponse, AppError> {
+    // Refresh token using auth service
+    let refresh_response = AuthService::refresh_token(&pool, &request.refresh_token).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(refresh_response)))
+}
+
+#[actix_web::post("/logout")]
+pub async fn logout(
+    pool: web::Data<DbPool>,
+    request: web::Json<LogoutRequest>,
+) -> Result<HttpResponse, AppError> {
+    // Logout user using auth service
+    AuthService::logout(&pool, &request.refresh_token).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(())))
+}
+
+
 pub async fn me(
     pool: web::Data<DbPool>,
     req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
-    // Extract token from Authorization header
+    // Extract user ID from token
     let auth_header = req
         .headers()
         .get("Authorization")
@@ -141,18 +114,8 @@ pub async fn me(
         .strip_prefix("Bearer ")
         .ok_or_else(|| AppError::AuthenticationError("Invalid authorization header format".to_string()))?;
     
-    // Extract user ID from token
-    let user_id = extract_user_id_from_token(token)
-        .map_err(|_| AppError::AuthenticationError("Invalid token".to_string()))?;
+    let claims = AuthService::verify_access_token(token)?;
+    let user_profile = AuthService::get_user_profile(&pool, claims.sub.parse().unwrap()).await?;
     
-    let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
-    
-    // Get user from database
-    let user = users::table
-        .find(user_id)
-        .first::<User>(conn)
-        .optional()?
-        .ok_or_else(|| AppError::NotFoundError("User not found".to_string()))?;
-    
-    Ok(HttpResponse::Ok().json(success_response(user)))
+    Ok(HttpResponse::Ok().json(ApiResponse::success(user_profile)))
 }

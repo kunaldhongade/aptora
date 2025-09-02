@@ -9,6 +9,7 @@ use std::env;
 mod auth;
 mod db;
 mod handlers;
+mod middleware;
 mod models;
 mod schema;
 mod utils;
@@ -58,7 +59,12 @@ async fn main() -> std::io::Result<()> {
                         web::scope("/auth")
                             .service(handlers::auth::register)
                             .service(handlers::auth::login)
-                            .service(handlers::auth::me)
+                            .service(handlers::auth::refresh)
+                            .service(handlers::auth::logout)
+                            .service(
+                                web::resource("/me")
+                                    .route(web::get().to(handlers::auth::me))
+                            )
                     )
                     .service(
                         web::scope("/trading")

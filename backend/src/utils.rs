@@ -5,6 +5,9 @@ use std::fmt;
 #[derive(Debug)]
 pub enum AppError {
     DatabaseError(diesel::result::Error),
+    DatabaseConnectionError(String),
+    BadRequest(String),
+    Unauthorized(String),
     ValidationError(String),
     AuthenticationError(String),
     AuthorizationError(String),
@@ -18,6 +21,9 @@ impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AppError::DatabaseError(err) => write!(f, "Database error: {}", err),
+            AppError::DatabaseConnectionError(msg) => write!(f, "Database connection error: {}", msg),
+            AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
+            AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             AppError::AuthenticationError(msg) => write!(f, "Authentication error: {}", msg),
             AppError::AuthorizationError(msg) => write!(f, "Authorization error: {}", msg),
@@ -38,6 +44,30 @@ impl ResponseError for AppError {
                     data: None,
                     message: None,
                     error: Some("Database error occurred".to_string()),
+                })
+            }
+            AppError::DatabaseConnectionError(msg) => {
+                HttpResponse::InternalServerError().json(ApiResponse::<()> {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some(msg.clone()),
+                })
+            }
+            AppError::BadRequest(msg) => {
+                HttpResponse::BadRequest().json(ApiResponse::<()> {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some(msg.clone()),
+                })
+            }
+            AppError::Unauthorized(msg) => {
+                HttpResponse::Unauthorized().json(ApiResponse::<()> {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some(msg.clone()),
                 })
             }
             AppError::ValidationError(msg) => {
@@ -133,14 +163,7 @@ impl<T> ApiResponse<T> {
         }
     }
 
-    pub fn error(error: String) -> Self {
-        Self {
-            success: false,
-            data: None,
-            message: None,
-            error: Some(error),
-        }
-    }
+
 }
 
 #[derive(Debug, Serialize, Deserialize)]

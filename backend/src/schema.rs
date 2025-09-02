@@ -76,16 +76,28 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    sessions (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        refresh_token_hash -> Varchar,
+        created_at -> Timestamptz,
+        expires_at -> Timestamptz,
+    }
+}
+
 diesel::joinable!(balances -> users (user_id));
 diesel::joinable!(orders -> markets (market_id));
 diesel::joinable!(orders -> users (user_id));
 diesel::joinable!(positions -> markets (market_id));
 diesel::joinable!(positions -> users (user_id));
+diesel::joinable!(sessions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     balances,
     markets,
     orders,
     positions,
+    sessions,
     users,
 );
