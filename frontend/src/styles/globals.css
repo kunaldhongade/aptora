@@ -34,26 +34,88 @@
 }
 
 @layer utilities {
-  .bg-bg-900 { background-color: var(--color-bg-900); }
-  .bg-bg-800 { background-color: var(--color-bg-800); }
-  .bg-surface-700 { background-color: var(--color-surface-700); }
-  .bg-primary { background-color: var(--color-primary); }
-  .bg-primary-600 { background-color: var(--color-primary-600); }
-  .bg-accent { background-color: var(--color-accent); }
-  .bg-success { background-color: var(--color-success); }
-  .bg-warning { background-color: var(--color-warning); }
-  .bg-danger { background-color: var(--color-danger); }
-  
-  .text-primary { color: var(--color-primary); }
-  .text-accent { color: var(--color-accent); }
-  .text-muted { color: var(--color-muted); }
-  .text-success { color: var(--color-success); }
-  .text-warning { color: var(--color-warning); }
-  .text-danger { color: var(--color-danger); }
-  .text-text-default { color: var(--color-text-default); }
+  .bg-bg-900 {
+    background-color: var(--color-bg-900);
+  }
 
-  .border-surface-600 { border-color: #1A2332; }
-  .border-primary { border-color: var(--color-primary); }
-  
-  .shadow-glow { box-shadow: 0 0 20px rgba(61, 209, 255, 0.15); }
+  .bg-bg-800 {
+    background-color: var(--color-bg-800);
+  }
+
+  .bg-surface-700 {
+    background-color: var(--color-surface-700);
+  }
+
+  .bg-surface-600 {
+    background-color: var(--color-surface-700);
+  }
+
+
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+
+  .bg-primary-600 {
+    background-color: var(--color-primary-600);
+  }
+
+  .bg-accent {
+    background-color: var(--color-accent);
+  }
+
+  .bg-success {
+    background-color: var(--color-success);
+  }
+
+  .bg-warning {
+    background-color: var(--color-warning);
+  }
+
+  .bg-danger {
+    background-color: var(--color-danger);
+  }
+
+  .text-primary {
+    color: var(--color-primary);
+  }
+
+  .text-accent {
+    color: var(--color-accent);
+  }
+
+  .text-muted {
+    color: var(--color-muted);
+  }
+
+  .text-success {
+    color: var(--color-success);
+  }
+
+  .text-warning {
+    color: var(--color-warning);
+  }
+
+  .text-danger {
+    color: var(--color-danger);
+  }
+
+  .text-text-default {
+    color: var(--color-text-default);
+  }
+
+  .border-surface-600 {
+    border-color: #1A2332;
+  }
+
+  .border-surface-700 {
+    border-color: #151c28;
+  }
+
+  .border-primary {
+    border-color: var(--color-primary);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(61, 209, 255, 0.15);
+  }
 }

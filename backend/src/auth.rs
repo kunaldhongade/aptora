@@ -341,4 +341,18 @@ impl AuthService {
 
         Ok(deleted_count)
     }
+
+    // Check if username is available
+    pub async fn check_username_availability(pool: &DbPool, username: &str) -> Result<bool, AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
+
+        let existing_user = users::table
+            .filter(users::username.eq(username))
+            .first::<User>(conn)
+            .optional()
+            .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?;
+
+        Ok(existing_user.is_none())
+    }
 }

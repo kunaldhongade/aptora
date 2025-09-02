@@ -133,6 +133,20 @@ class ApiClient {
     return response.data.data;
   }
 
+  async checkUsernameAvailability(
+    username: string
+  ): Promise<{ username: string; available: boolean }> {
+    const response: AxiosResponse<
+      ApiResponse<{ username: string; available: boolean }>
+    > = await this.client.get(`/auth/check-username/${username}`);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(
+        response.data.error || "Failed to check username availability"
+      );
+    }
+    return response.data.data;
+  }
+
   // Trading methods
   async getMarkets(): Promise<MarketResponse[]> {
     const response: AxiosResponse<ApiResponse<MarketResponse[]>> =

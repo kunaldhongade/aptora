@@ -3,7 +3,7 @@ use crate::DbPool;
 use crate::auth::{AuthService, RegisterRequest as AuthRegisterRequest, LoginRequest as AuthLoginRequest};
 use crate::utils::{AppError, ApiResponse};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
@@ -96,6 +96,27 @@ pub async fn logout(
     AuthService::logout(&pool, &request.refresh_token).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(())))
+}
+
+#[derive(Debug, Serialize)]
+struct UsernameAvailabilityResponse {
+    username: String,
+    available: bool,
+}
+
+#[actix_web::get("/check-username/{username}")]
+pub async fn check_username(
+    pool: web::Data<DbPool>,
+    username: web::Path<String>,
+) -> Result<HttpResponse, AppError> {
+    let is_available = AuthService::check_username_availability(&pool, &username).await?;
+    
+    let response = UsernameAvailabilityResponse {
+        username: username.to_string(),
+        available: is_available,
+    };
+    
+    Ok(HttpResponse::Ok().json(ApiResponse::success(response)))
 }
 
 

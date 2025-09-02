@@ -61,6 +61,7 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::auth::login)
                             .service(handlers::auth::refresh)
                             .service(handlers::auth::logout)
+                            .service(handlers::auth::check_username)
                             .service(
                                 web::resource("/me")
                                     .route(web::get().to(handlers::auth::me))
