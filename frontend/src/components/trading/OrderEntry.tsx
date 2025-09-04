@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
 import { clsx } from 'clsx';
-import { Button } from '../ui/Button';
-import { NumberInput } from '../ui/NumberInput';
-import { LeverageSlider } from '../ui/LeverageSlider';
 import { Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { apiClient } from '../../lib/api';
+import { Button } from '../ui/Button';
+import { LeverageSlider } from '../ui/LeverageSlider';
+import { NumberInput } from '../ui/NumberInput';
 
 interface OrderEntryProps {
   symbol: string;
@@ -22,10 +23,43 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
   const [leverage, setLeverage] = useState<number>(10);
   const [limitPrice, setLimitPrice] = useState<number>(price);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const notional = quantity * price;
   const requiredCollateral = notional / leverage;
   const estimatedFee = notional * 0.001; // 0.1% fee
+
+  const handlePlaceOrder = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const orderData = {
+        symbol,
+        side: side.toUpperCase(),
+        order_type: activeTab === 'market' ? 'market' : 'limit',
+        size: quantity,
+        price: activeTab === 'limit' ? limitPrice : undefined,
+        leverage,
+        margin_type: 'cross'
+      };
+
+      const result = await apiClient.placeOrder(orderData);
+      setSuccess(`Order placed successfully! Order ID: ${result.order_id || 'N/A'}`);
+
+      // Reset form
+      setQuantity(100);
+      setLimitPrice(price);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to place order');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const tabs = [
     { id: 'market', label: 'Market' },
@@ -115,7 +149,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
             <Settings className="w-4 h-4" />
             Advanced Settings
           </button>
-          
+
           {showAdvanced && (
             <div className="space-y-3 p-3 bg-bg-800 rounded-lg">
               <div className="flex items-center justify-between">
@@ -152,13 +186,28 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
           </div>
         </div>
 
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="p-3 bg-danger/20 border border-danger/30 rounded-lg text-danger text-sm">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 bg-success/20 border border-success/30 rounded-lg text-success text-sm">
+            {success}
+          </div>
+        )}
+
         {/* Submit Button */}
         <Button
           variant={side === 'buy' ? 'primary' : 'destructive'}
           size="lg"
           className="w-full"
+          onClick={handlePlaceOrder}
+          disabled={isSubmitting}
         >
-          {side === 'buy' ? 'BUY' : 'SELL'} {symbol}
+          {isSubmitting ? 'PLACING ORDER...' : `${side === 'buy' ? 'BUY' : 'SELL'} ${symbol}`}
         </Button>
 
         <p className="text-xs text-muted text-center">

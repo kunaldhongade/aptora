@@ -1,0 +1,414 @@
+import { clsx } from 'clsx';
+import { motion } from 'framer-motion';
+import {
+    Award,
+    Crown,
+    Heart,
+    MessageCircle,
+    Search,
+    Share2,
+    TrendingUp,
+    UserMinus,
+    UserPlus,
+    Users
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Button } from '../components/ui/Button';
+import { useAuth } from '../contexts/AuthContext';
+import { apiClient, ReferralLeaderboardEntry } from '../lib/api';
+
+interface User {
+    id: string;
+    username: string;
+    email: string;
+    bio?: string;
+    avatar_url?: string;
+    is_verified?: boolean;
+    referral_count?: number;
+    total_rewards?: number;
+    last_active?: string;
+}
+
+export const Social: React.FC = () => {
+    const { user } = useAuth();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [users, setUsers] = useState<User[]>([]);
+    const [followers, setFollowers] = useState<User[]>([]);
+    const [following, setFollowing] = useState<User[]>([]);
+    const [leaderboard, setLeaderboard] = useState<ReferralLeaderboardEntry[]>([]);
+    const [activeTab, setActiveTab] = useState<'discover' | 'followers' | 'following' | 'leaderboard'>('discover');
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (user?.username) {
+            loadSocialData();
+        }
+    }, [user]);
+
+    const loadSocialData = async () => {
+        if (!user?.username) return;
+
+        setIsLoading(true);
+        try {
+            const [followersData, followingData, leaderboardData] = await Promise.all([
+                apiClient.getFollowers(user.username),
+                apiClient.getFollowing(user.username),
+                apiClient.getReferralLeaderboard(50) // Load more users for discovery
+            ]);
+
+            setFollowers(followersData);
+            setFollowing(followingData);
+            setLeaderboard(leaderboardData);
+
+            // Convert leaderboard entries to user profiles for discover section
+            const discoverUsers = leaderboardData.map(entry => ({
+                id: entry.username, // Use username as ID since we don't have user ID
+                username: entry.username,
+                email: '', // Not available from leaderboard
+                bio: entry.referral_count > 0
+                    ? `Top referrer with ${entry.referral_count} referrals • $${entry.total_rewards?.toFixed(2) || '0.00'} earned`
+                    : 'New trader on Aptora',
+                avatar_url: undefined,
+                is_verified: entry.referral_count > 10, // Mark as verified if they have many referrals
+                referral_count: entry.referral_count,
+                total_rewards: entry.total_rewards,
+                last_active: undefined
+            }));
+            setUsers(discoverUsers);
+        } catch (error) {
+            console.error('Failed to load social data:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleFollow = async (username: string) => {
+        // Prevent self-follow
+        if (username === user?.username) {
+            console.error('Cannot follow yourself');
+            return;
+        }
+
+        try {
+            await apiClient.followUser(username);
+            await loadSocialData(); // Refresh data
+        } catch (error) {
+            console.error('Failed to follow user:', error);
+            // TODO: Add toast notification for error
+        }
+    };
+
+    const handleUnfollow = async (username: string) => {
+        try {
+            await apiClient.unfollowUser(username);
+            await loadSocialData(); // Refresh data
+        } catch (error) {
+            console.error('Failed to unfollow user:', error);
+            // TODO: Add toast notification for error
+        }
+    };
+
+    const isFollowing = (username: string) => {
+        return following.some(u => u.username === username);
+    };
+
+    // Filter users based on search term and exclude current user
+    const filteredUsers = users.filter(userProfile =>
+        userProfile.username !== user?.username && // Exclude current user
+        (userProfile.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (userProfile.bio && userProfile.bio.toLowerCase().includes(searchTerm.toLowerCase())))
+    );
+
+    const renderUserCard = (userProfile: User, showFollowButton: boolean = true) => (
+        <motion.div
+            key={userProfile.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-surface-700 rounded-xl p-4 border border-surface-600 hover:border-primary/50 transition-colors"
+        >
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-black font-bold text-lg">
+                        {userProfile.username.slice(0, 2).toUpperCase()}
+                    </div>
+                    {userProfile.is_verified && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                            <Crown className="w-3 h-3 text-black" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-text-default truncate">@{userProfile.username}</h3>
+                        {userProfile.is_verified && (
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">
+                                Verified
+                            </span>
+                        )}
+                    </div>
+
+                    {userProfile.bio && (
+                        <p className="text-sm text-muted line-clamp-2 mb-2">{userProfile.bio}</p>
+                    )}
+
+                    <div className="flex items-center gap-4 text-xs text-muted">
+                        {userProfile.referral_count !== undefined && (
+                            <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {userProfile.referral_count} referrals
+                            </span>
+                        )}
+                        {userProfile.total_rewards !== undefined && (
+                            <span className="flex items-center gap-1">
+                                <TrendingUp className="w-3 h-3" />
+                                ${userProfile.total_rewards.toFixed(2)} earned
+                            </span>
+                        )}
+                        {userProfile.last_active && (
+                            <span>Active {new Date(userProfile.last_active).toLocaleDateString()}</span>
+                        )}
+                    </div>
+                </div>
+
+                {showFollowButton && (
+                    <div className="flex gap-2">
+                        {userProfile.username === user?.username ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled
+                                icon={UserPlus}
+                            >
+                                You
+                            </Button>
+                        ) : isFollowing(userProfile.username) ? (
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleUnfollow(userProfile.username)}
+                                icon={UserMinus}
+                            >
+                                Unfollow
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleFollow(userProfile.username)}
+                                icon={UserPlus}
+                            >
+                                Follow
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+
+    const renderLeaderboardItem = (entry: ReferralLeaderboardEntry, index: number) => (
+        <motion.div
+            key={entry.username}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="bg-surface-700 rounded-xl border border-surface-600 p-4 hover:bg-surface-600/30 transition-colors"
+        >
+            <div className="flex items-center gap-4">
+                <div className={clsx(
+                    'w-10 h-10 rounded-full flex items-center justify-center text-black font-bold',
+                    index === 0 && 'bg-warning',
+                    index === 1 && 'bg-muted',
+                    index === 2 && 'bg-orange-600 text-white',
+                    index > 2 && 'bg-accent'
+                )}>
+                    {index === 0 && <Crown className="w-5 h-5" />}
+                    {index > 0 && `#${index + 1}`}
+                </div>
+
+                <div className="flex-1">
+                    <h3 className="font-semibold text-text-default">@{entry.username}</h3>
+                    <div className="flex items-center gap-4 text-sm text-muted">
+                        <span className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {entry.referral_count} referrals
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" />
+                            ${entry.total_rewards?.toFixed(2) || '0.00'} earned
+                        </span>
+                    </div>
+                </div>
+
+                <div className="text-right">
+                    <div className="text-lg font-bold text-success">
+                        {entry.referral_count}
+                    </div>
+                    <div className="text-xs text-muted">referrals</div>
+                </div>
+            </div>
+        </motion.div>
+    );
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold text-text-default mb-2">Social Network</h1>
+                <p className="text-muted">
+                    Connect with other traders, discover new strategies, and build your network.
+                </p>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted" />
+                <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-surface-700 border border-surface-600 rounded-xl text-text-default placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex gap-2 bg-surface-800 rounded-xl p-1">
+                {[
+                    { id: 'discover', label: 'Discover', icon: Search },
+                    { id: 'followers', label: `Followers (${followers.length})`, icon: Users },
+                    { id: 'following', label: `Following (${following.length})`, icon: UserPlus },
+                    { id: 'leaderboard', label: 'Top Referrers', icon: Award }
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={clsx(
+                            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                            activeTab === tab.id
+                                ? 'bg-primary text-black'
+                                : 'text-muted hover:text-text-default'
+                        )}
+                    >
+                        <tab.icon className="w-4 h-4" />
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Content */}
+            {isLoading ? (
+                <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted">Loading...</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {activeTab === 'discover' && (
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-semibold text-text-default">Discover Users</h2>
+                                <span className="text-sm text-muted">{filteredUsers.length} users found</span>
+                            </div>
+                            <div className="space-y-4">
+                                {filteredUsers.length > 0 ? (
+                                    <>
+                                        {filteredUsers.map(userProfile => renderUserCard(userProfile))}
+                                        {!searchTerm && (
+                                            <div className="text-center pt-4">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        // TODO: Load more users from leaderboard
+                                                        console.log('Load more users clicked');
+                                                    }}
+                                                >
+                                                    Load More Users
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : searchTerm ? (
+                                    <div className="text-center py-12 text-muted">
+                                        <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                        <p>No users found matching "{searchTerm}". Try adjusting your search.</p>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12 text-muted">
+                                        <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                        <p>No users available to discover yet.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'followers' && (
+                        <div>
+                            <h2 className="text-lg font-semibold text-text-default mb-4">Your Followers</h2>
+                            <div className="space-y-4">
+                                {followers.length > 0 ? (
+                                    followers.map(userProfile => renderUserCard(userProfile, false))
+                                ) : (
+                                    <div className="text-center py-12 text-muted">
+                                        <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                        <p>No followers yet. Start sharing your trading insights!</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'following' && (
+                        <div>
+                            <h2 className="text-lg font-semibold text-text-default mb-4">People You Follow</h2>
+                            <div className="space-y-4">
+                                {following.length > 0 ? (
+                                    following.map(userProfile => renderUserCard(userProfile))
+                                ) : (
+                                    <div className="text-center py-12 text-muted">
+                                        <UserPlus className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                        <p>You're not following anyone yet. Discover amazing traders!</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'leaderboard' && (
+                        <div>
+                            <h2 className="text-lg font-semibold text-text-default mb-4">Top Referrers</h2>
+                            <div className="space-y-3">
+                                {leaderboard.length > 0 ? (
+                                    leaderboard.map((entry, index) => renderLeaderboardItem(entry, index))
+                                ) : (
+                                    <div className="text-center py-12 text-muted">
+                                        <Award className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                        <p>No referral data available yet.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="bg-surface-700 rounded-xl p-4 border border-surface-600">
+                <h3 className="font-semibold text-text-default mb-3">Quick Actions</h3>
+                <div className="flex gap-3">
+                    <Button variant="primary" icon={Share2}>
+                        Share Your Profile
+                    </Button>
+                    <Button variant="secondary" icon={Users}>
+                        Invite Friends
+                    </Button>
+                    <Button variant="ghost" icon={Heart}>
+                        View Activity
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};

@@ -31,8 +31,8 @@ const Trade: React.FC = () => {
         setSelectedMarket(marketsData[0]);
       }
     } catch (err) {
-      setError('Failed to fetch markets');
-      console.error('Error fetching markets:', err);
+      setError('Failed to load markets data');
+      console.error('Error loading markets:', err);
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,7 @@ const Trade: React.FC = () => {
       const orderbookData = await apiClient.getOrderbook(symbol, 20);
       setOrderbook(orderbookData);
     } catch (err) {
-      console.error('Error fetching orderbook:', err);
+      console.error('Error loading orderbook:', err);
     }
   };
 

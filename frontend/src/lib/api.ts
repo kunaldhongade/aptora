@@ -39,7 +39,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: "http://localhost:8080/api",
+      baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api",
       headers: {
         "Content-Type": "application/json",
       },
@@ -64,6 +64,15 @@ class ApiClient {
       (response: any) => response,
       async (error: any) => {
         if (error.response?.status === 401) {
+          // Check if this is already a refresh request to avoid infinite loop
+          if (error.config.url?.includes("/auth/refresh")) {
+            // Refresh failed, redirect to login
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+            window.location.href = "/login";
+            return Promise.reject(error);
+          }
+
           // Token expired, try to refresh
           try {
             const refreshToken = localStorage.getItem("refresh_token");
@@ -153,7 +162,7 @@ class ApiClient {
     return response.data.data;
   }
 
-  // Trading methods
+  // Trading methods - Now using real Kana Labs API through backend
   async getMarkets(): Promise<MarketResponse[]> {
     const response: AxiosResponse<ApiResponse<MarketResponse[]>> =
       await this.client.get("/trading/markets");
@@ -165,11 +174,11 @@ class ApiClient {
 
   async getOrderbook(
     symbol: string,
-    depth: number = 20
+    depth?: number
   ): Promise<OrderbookResponse> {
     const response: AxiosResponse<ApiResponse<OrderbookResponse>> =
       await this.client.get(
-        `/trading/orderbook?market_id=${symbol}&depth=${depth}`
+        `/trading/orderbook/${symbol}${depth ? `?depth=${depth}` : ""}`
       );
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get orderbook");
@@ -178,7 +187,7 @@ class ApiClient {
   }
 
   async placeOrder(
-    orderData: Record<string, unknown>
+    orderData: PlaceOrderRequest
   ): Promise<Record<string, unknown>> {
     const response: AxiosResponse<ApiResponse<Record<string, unknown>>> =
       await this.client.post("/trading/orders", orderData);
@@ -212,21 +221,225 @@ class ApiClient {
 
   async getFundingRate(symbol: string): Promise<Record<string, unknown>> {
     const response: AxiosResponse<ApiResponse<Record<string, unknown>>> =
-      await this.client.get(`/trading/funding-rate?market_id=${symbol}`);
+      await this.client.get(`/trading/funding-rate/${symbol}`);
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get funding rate");
     }
     return response.data.data;
   }
 
-  async getMarketPrice(symbol: string): Promise<Record<string, unknown>> {
-    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> =
-      await this.client.get(`/trading/market-price?market_id=${symbol}`);
+  async getMarketPrice(
+    symbol: string
+  ): Promise<{ symbol: string; price: number; timestamp: string }> {
+    const encodedSymbol = encodeURIComponent(symbol);
+    const response: AxiosResponse<
+      ApiResponse<{ symbol: string; price: number; timestamp: string }>
+    > = await this.client.get(`/trading/price/${encodedSymbol}`);
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get market price");
     }
     return response.data.data;
   }
+
+  // Social features methods
+  async followUser(username: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<void>> = await this.client.post(
+      `/social/follow`,
+      { username }
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error || "Failed to follow user");
+    }
+  }
+
+  async unfollowUser(username: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<void>> = await this.client.delete(
+      `/social/follow/${username}`
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error || "Failed to unfollow user");
+    }
+  }
+
+  async getFollowers(username: string): Promise<User[]> {
+    const response: AxiosResponse<ApiResponse<User[]>> = await this.client.get(
+      `/social/followers/${username}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get followers");
+    }
+    return response.data.data;
+  }
+
+  async getFollowing(username: string): Promise<User[]> {
+    const response: AxiosResponse<ApiResponse<User[]>> = await this.client.get(
+      `/social/following/${username}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get following");
+    }
+    return response.data.data;
+  }
+
+  async getReferralLeaderboard(
+    limit: number = 10
+  ): Promise<ReferralLeaderboardEntry[]> {
+    const response: AxiosResponse<ApiResponse<ReferralLeaderboardEntry[]>> =
+      await this.client.get(`/social/referral-leaderboard?limit=${limit}`);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(
+        response.data.error || "Failed to get referral leaderboard"
+      );
+    }
+    return response.data.data;
+  }
+
+  async getUserProfile(username: string): Promise<User> {
+    const response: AxiosResponse<ApiResponse<User>> = await this.client.get(
+      `/social/profile/${username}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get user profile");
+    }
+    return response.data.data;
+  }
+
+  async updateProfile(profileData: Partial<User>): Promise<User> {
+    const response: AxiosResponse<ApiResponse<User>> = await this.client.put(
+      `/social/profile`,
+      profileData
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to update profile");
+    }
+    return response.data.data;
+  }
+
+  // Get current user's referral information (includes private data like total rewards)
+  async getReferralInfo(): Promise<{
+    referral_code: string;
+    referral_count: number;
+    total_rewards?: number;
+  }> {
+    const response: AxiosResponse<
+      ApiResponse<{
+        referral_code: string;
+        referral_count: number;
+        total_rewards?: number;
+      }>
+    > = await this.client.get(`/social/referral-info`);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get referral info");
+    }
+    return response.data.data;
+  }
+
+  // Get users that the current user has referred
+  async getReferredUsers(
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<User[]> {
+    const response: AxiosResponse<ApiResponse<User[]>> = await this.client.get(
+      `/social/referred-users?limit=${limit}&offset=${offset}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get referred users");
+    }
+    return response.data.data;
+  }
+
+  // Get follow statistics for a user
+  async getFollowStats(username: string): Promise<FollowStats> {
+    const response: AxiosResponse<ApiResponse<FollowStats>> =
+      await this.client.get(`/social/follow-stats/${username}`);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get follow stats");
+    }
+    return response.data.data;
+  }
+
+  // Check if current user is following another user
+  async checkFollowingStatus(
+    userId: string
+  ): Promise<{ is_following: boolean }> {
+    const response: AxiosResponse<ApiResponse<{ is_following: boolean }>> =
+      await this.client.get(`/social/check-following/${userId}`);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(
+        response.data.error || "Failed to check following status"
+      );
+    }
+    return response.data.data;
+  }
+
+  // User profile endpoints (different from social profile)
+  async getUserProfile(): Promise<User> {
+    const response: AxiosResponse<ApiResponse<User>> = await this.client.get(
+      "/user/profile"
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get user profile");
+    }
+    return response.data.data;
+  }
+
+  async updateUserProfile(profileData: Partial<User>): Promise<User> {
+    const response: AxiosResponse<ApiResponse<User>> = await this.client.put(
+      "/user/profile",
+      profileData
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to update user profile");
+    }
+    return response.data.data;
+  }
+
+  async getUserBalance(): Promise<
+    { asset: string; available: number; locked: number; total: number }[]
+  > {
+    const response: AxiosResponse<
+      ApiResponse<
+        { asset: string; available: number; locked: number; total: number }[]
+      >
+    > = await this.client.get("/user/balance");
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get user balance");
+    }
+    return response.data.data;
+  }
+
+  // Health check endpoint
+  async healthCheck(): Promise<{ status: string; timestamp: string }> {
+    const response: AxiosResponse<
+      ApiResponse<{ status: string; timestamp: string }>
+    > = await this.client.get("/health");
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Health check failed");
+    }
+    return response.data.data;
+  }
+}
+
+// Social feature interfaces
+export interface ReferralLeaderboardEntry {
+  username: string;
+  referral_count: number;
+  total_rewards: number;
+}
+
+export interface FollowStats {
+  followers_count: number;
+  following_count: number;
+}
+
+export interface PlaceOrderRequest {
+  symbol: string;
+  side: string; // "buy" or "sell"
+  order_type: string; // "market" or "limit"
+  size: number;
+  price?: number;
+  leverage?: number;
+  margin_type?: string; // "isolated" or "cross"
 }
 
 export const apiClient = new ApiClient();

@@ -1,6 +1,6 @@
-import React from 'react';
 import { clsx } from 'clsx';
-import { Home, TrendingUp, Users, Vault, User } from 'lucide-react';
+import { FileText, Home, TrendingUp, User, Users, Vault } from 'lucide-react';
+import React from 'react';
 
 interface BottomNavProps {
   currentPage: string;
@@ -9,10 +9,10 @@ interface BottomNavProps {
 
 const bottomNavItems = [
   { id: 'dashboard', label: 'Home', icon: Home },
-  { id: 'trade', label: 'Trade', icon: TrendingUp },
-  { id: 'markets', label: 'Markets', icon: TrendingUp },
-  { id: 'vaults', label: 'Vaults', icon: Vault },
+  { id: 'orders', label: 'Orders', icon: FileText },
+  { id: 'social', label: 'Social', icon: Users },
   { id: 'referrals', label: 'Refs', icon: User },
+  { id: 'trade', label: 'Trade', icon: TrendingUp },
 ];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {

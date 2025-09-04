@@ -1,21 +1,22 @@
-import React, { useState } from 'react';
 import { clsx } from 'clsx';
-import { Button } from '../ui/Button';
-import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Menu, 
-  X, 
-  Home, 
-  TrendingUp, 
-  Users, 
-  Vault, 
-  Gift, 
-  User,
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  FileText,
+  Gift,
+  Home,
+  LogOut,
+  Menu,
   Settings as SettingsIcon,
+  TrendingUp,
+  User,
+  Users,
+  Vault,
   Wallet,
-  LogOut
+  X
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../ui/Button';
 
 interface HeaderProps {
   currentPage: string;
@@ -25,10 +26,12 @@ interface HeaderProps {
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'markets', label: 'Markets', icon: TrendingUp },
-  { id: 'leaderboard', label: 'Leaderboard', icon: Users },
-  { id: 'vaults', label: 'Vaults', icon: Vault },
+  { id: 'orders', label: 'Orders', icon: FileText },
+  { id: 'social', label: 'Social', icon: Users },
   { id: 'referrals', label: 'Referrals', icon: Gift },
-  { id: 'portfolio', label: 'Portfolio', icon: User },
+  { id: 'leaderboard', label: 'Leaderboard', icon: TrendingUp },
+  { id: 'vaults', label: 'Vaults', icon: Vault },
+  { id: 'profile', label: 'Profile', icon: User },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
@@ -39,13 +42,11 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
   return (
     <>
       <header className="bg-surface-700 border-b border-surface-600">
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 max-w-screen-xl mx-auto">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-black font-bold text-sm">A</span>
-              </div>
+
               <span className="text-xl font-bold text-text-default">Aptora</span>
             </div>
 
@@ -73,16 +74,16 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
               <Button variant="ghost" size="sm" icon={Wallet}>
                 <span className="hidden sm:inline">Connect</span>
               </Button>
-              
+
               {/* User Menu */}
               <div className="flex items-center gap-2">
                 <div className="hidden sm:flex items-center gap-2 text-sm">
                   <span className="text-muted">Welcome,</span>
                   <span className="text-text-default font-medium">{user?.username || 'User'}</span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   icon={LogOut}
                   onClick={logout}
                   className="text-muted hover:text-danger"
@@ -90,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
                   <span className="hidden sm:inline">Logout</span>
                 </Button>
               </div>
-              
+
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

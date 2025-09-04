@@ -7,6 +7,7 @@ export const RegisterForm: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [referralCode, setReferralCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
@@ -76,6 +77,7 @@ export const RegisterForm: React.FC = () => {
         setIsLoading(true);
 
         try {
+            console.log('Submitting registration with referralCode:', referralCode); // Debug log
             await register(email, username, password, referralCode || undefined);
             // Redirect or handle successful registration
         } catch (err) {
