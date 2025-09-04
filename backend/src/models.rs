@@ -2,21 +2,41 @@ use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-// use rust_decimal::f64;
+// use rust_decimal::Decimal;
 // use rust_decimal_macros::dec;
 
 // Database Models
-#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable)]
 #[diesel(table_name = crate::schema::users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct User {
     pub id: Uuid,
     pub email: String,
-    pub username: String,
     pub password_hash: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub username: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub referred_by: Option<Uuid>,
+    pub referral_count: Option<i32>,
+    pub total_referral_rewards: Option<f64>,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+    pub is_verified: Option<bool>,
+    pub last_active: Option<DateTime<Utc>>,
 }
+
+// Minimal User struct for basic authentication queries
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable)]
+#[diesel(table_name = crate::schema::users)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct AuthUser {
+    pub id: Uuid,
+    pub email: String,
+    pub password_hash: String,
+    pub username: String,
+}
+
+
 
 // Session Models for Refresh Tokens
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
@@ -24,9 +44,9 @@ pub struct User {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Session {
     pub id: Uuid,
-    pub user_id: Uuid,
+    pub user_id: Option<Uuid>,
     pub refresh_token_hash: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
     pub expires_at: DateTime<Utc>,
 }
 
@@ -44,79 +64,101 @@ pub struct UserProfile {
     pub id: Uuid,
     pub email: String,
     pub username: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+    pub is_verified: Option<bool>,
+    pub referral_count: Option<i32>,
+    pub total_referral_rewards: Option<f64>,
+    pub last_active: Option<DateTime<Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
-#[diesel(table_name = crate::schema::markets)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct Market {
-    pub id: Uuid,
-    pub symbol: String,
-    pub base_asset: String,
-    pub quote_asset: String,
-    pub min_order_size: f64,
-    pub max_order_size: f64,
-    pub tick_size: f64,
-    pub is_active: bool,
-    pub created_at: DateTime<Utc>,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
-#[diesel(table_name = crate::schema::orders)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct Order {
-    pub id: Uuid,
-    pub user_id: Uuid,
-    pub market_id: Uuid,
-    pub order_type: String,
-    pub side: String,
-    pub quantity: f64,
-    pub price: Option<f64>,
-    pub status: String,
-    pub filled_quantity: f64,
-    pub average_price: Option<f64>,
-    pub leverage: Option<f64>,
-    pub margin_type: Option<String>, // "isolated" or "cross"
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
-#[diesel(table_name = crate::schema::balances)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+// New Models for Kana Labs Perps
+
+// Kana Labs API Response Models
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Balance {
-    pub id: Uuid,
-    pub user_id: Uuid,
     pub asset: String,
     pub available: f64,
     pub locked: f64,
     pub total: f64,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }
 
-// New Models for Kana Labs Perps
+// Social Features Models
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
-#[diesel(table_name = crate::schema::positions)]
+#[diesel(table_name = crate::schema::follows)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct Position {
+pub struct Follow {
     pub id: Uuid,
-    pub user_id: Uuid,
-    pub market_id: Uuid,
-    pub side: String, // "long" or "short"
-    pub size: f64,
-    pub entry_price: f64,
-    pub mark_price: f64,
-    pub unrealized_pnl: f64,
-    pub realized_pnl: f64,
-    pub margin: f64,
-    pub leverage: f64,
-    pub liquidation_price: Option<f64>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub follower_id: Uuid,
+    pub following_id: Uuid,
+    pub created_at: Option<DateTime<Utc>>,
 }
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::schema::follows)]
+pub struct NewFollow {
+    pub follower_id: Uuid,
+    pub following_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
+#[diesel(table_name = crate::schema::referral_rewards)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct ReferralReward {
+    pub id: Uuid,
+    pub referrer_id: Uuid,
+    pub referred_user_id: Uuid,
+    pub reward_amount: f64,
+    pub reward_type: String,
+    pub status: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub paid_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::schema::referral_rewards)]
+pub struct NewReferralReward {
+    pub referrer_id: Uuid,
+    pub referred_user_id: Uuid,
+    pub reward_amount: f64,
+    pub reward_type: String,
+}
+
+
+
+// Public User Profile (for other users to see)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PublicUserProfile {
+    pub id: Uuid,
+    pub username: String,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+    pub is_verified: Option<bool>,
+    pub referral_count: Option<i32>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub last_active: Option<DateTime<Utc>>,
+}
+
+// Referral Leaderboard Entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferralLeaderboardEntry {
+    pub username: String,
+    pub referral_count: i32,
+    pub total_rewards: Option<f64>,
+    pub rank: i32,
+}
+
+// Follow Statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FollowStats {
+    pub followers_count: i64,
+    pub following_count: i64,
+}
+
 
 // Insert Models
 #[derive(Debug, Insertable)]
@@ -125,54 +167,22 @@ pub struct NewUser {
     pub email: String,
     pub username: String,
     pub password_hash: String,
+    pub referred_by: Option<Uuid>,
+    pub referral_count: Option<i32>,
+    pub total_referral_rewards: Option<f64>,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+    pub is_verified: Option<bool>,
+    pub last_active: Option<chrono::DateTime<Utc>>,
 }
 
-#[derive(Debug, Insertable)]
-#[diesel(table_name = crate::schema::markets)]
-pub struct NewMarket {
-    pub symbol: String,
-    pub base_asset: String,
-    pub quote_asset: String,
-    pub min_order_size: f64,
-    pub max_order_size: f64,
-    pub tick_size: f64,
-}
 
-#[derive(Debug, Insertable)]
-#[diesel(table_name = crate::schema::orders)]
-pub struct NewOrder {
-    pub user_id: Uuid,
-    pub market_id: Uuid,
-    pub order_type: String,
-    pub side: String,
-    pub quantity: f64,
-    pub price: Option<f64>,
-    pub leverage: Option<f64>,
-    pub margin_type: Option<String>,
-}
-
-#[derive(Debug, Insertable)]
-#[diesel(table_name = crate::schema::balances)]
-pub struct NewBalance {
-    pub user_id: Uuid,
-    pub asset: String,
-    pub available: f64,
-    pub locked: f64,
-    pub total: f64,
-}
-
-#[derive(Debug, Insertable)]
-#[diesel(table_name = crate::schema::positions)]
-pub struct NewPosition {
-    pub user_id: Uuid,
-    pub market_id: Uuid,
-    pub side: String,
-    pub size: f64,
-    pub entry_price: f64,
-    pub mark_price: f64,
-    pub margin: f64,
-    pub leverage: f64,
-}
+//     pub size: f64,
+//     pub entry_price: f64,
+//     pub mark_price: f64,
+//     pub margin: f64,
+//     pub leverage: f64,
+// }
 
 // API Response Models
 #[derive(Debug, Serialize)]
@@ -180,7 +190,7 @@ pub struct UserResponse {
     pub id: Uuid,
     pub email: String,
     pub username: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -261,6 +271,10 @@ pub struct KanaMarket {
     pub volume_24h: f64,
     pub funding_rate: f64,
     pub next_funding_time: DateTime<Utc>,
+    pub min_order_size: f64,
+    pub max_order_size: f64,
+    pub tick_size: f64,
+    pub is_active: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -317,77 +331,80 @@ pub struct KanaPosition {
 }
 
 // From implementations
-impl From<User> for UserResponse {
-    fn from(user: User) -> Self {
-        Self {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            created_at: user.created_at,
-        }
-    }
-}
+// impl From<User> for UserResponse {
+//     fn from(user: User) -> Self {
+//         Self {
+//             id: user.id,
+//             email: user.email,
+//             username: user.username,
+//             created_at: user.created_at,
+//         }
+//     }
+// }
 
-impl From<Market> for MarketResponse {
-    fn from(market: Market) -> Self {
-        Self {
-            id: market.id,
-            symbol: market.symbol,
-            base_asset: market.base_asset,
-            quote_asset: market.quote_asset,
-            min_order_size: market.min_order_size,
-            max_order_size: market.max_order_size,
-            tick_size: market.tick_size,
-            is_active: market.is_active,
-        }
-    }
-}
+// impl From<Market> for MarketResponse {
+//     fn from(market: Market) -> Self {
+//         Self {
+//             id: market.id,
+//             symbol: market.symbol,
+//             base_asset: market.base_asset,
+//             quote_asset: market.quote_asset,
+//             min_order_size: market.min_order_size,
+//             max_order_size: market.max_order_size,
+//             tick_size: market.tick_size,
+//             is_active: market.is_active,
+//         }
+//     }
+// }
 
-impl From<Order> for OrderResponse {
-    fn from(order: Order) -> Self {
-        Self {
-            id: order.id,
-            market_id: order.market_id,
-            order_type: order.order_type,
-            side: order.side,
-            quantity: order.quantity,
-            price: order.price,
-            status: order.status,
-            filled_quantity: order.filled_quantity,
-            average_price: order.average_price,
-            leverage: order.leverage,
-            margin_type: order.margin_type,
-            created_at: order.created_at,
-        }
-    }
-}
+// impl From<Order> for OrderResponse {
+//     fn from(order: Order) -> Self {
+//         Self {
+//             id: order.id,
+//             market_id: order.market_id,
+//             order_type: order.order_type,
+//             side: order.side,
+//             quantity: order.quantity,
+//             price: order.price,
+//             status: order.status,
+//             filled_quantity: order.filled_quantity,
+//             average_price: order.average_price,
+//             leverage: order.leverage,
+//             margin_type: order.margin_type,
+//             created_at: order.created_at,
+//         }
+//     }
+// }
 
-impl From<Balance> for BalanceResponse {
-    fn from(balance: Balance) -> Self {
-        Self {
-            asset: balance.asset,
-            available: balance.available,
-            locked: balance.locked,
-            total: balance.total,
-        }
-    }
-}
+// impl From<Balance> for BalanceResponse {
+//     fn from(balance: Balance) -> Self {
+//         Self {
+//             id: balance.id,
+//             asset: balance.asset,
+//             available: balance.available,
+//             locked: balance.locked,
+//             total: balance.total,
+//         }
+//     }
+// }
 
-impl From<Position> for PositionResponse {
-    fn from(position: Position) -> Self {
-        Self {
-            id: position.id,
-            market_id: position.market_id,
-            side: position.side,
-            size: position.size,
-            entry_price: position.entry_price,
-            mark_price: position.mark_price,
-            unrealized_pnl: position.unrealized_pnl,
-            realized_pnl: position.realized_pnl,
-            margin: position.margin,
-            leverage: position.leverage,
-            liquidation_price: position.liquidation_price,
-            created_at: position.created_at,
-        }
-    }
-}
+
+// impl From<Position> for PositionResponse {
+//     fn from(position: Position) -> Self {
+//         Self {
+//             id: position.id,
+//             market_id: position.market_id,
+//             side: position.side,
+//             size: position.size,
+//             entry_price: position.entry_price,
+//             mark_price: position.mark_price,
+//             unrealized_pnl: position.unrealized_pnl,
+//             realized_pnl: position.realized_pnl,
+//             margin: position.margin,
+//             leverage: position.leverage,
+//             liquidation_price: position.liquidation_price,
+//             created_at: position.created_at,
+//         }
+//     }
+// }
+

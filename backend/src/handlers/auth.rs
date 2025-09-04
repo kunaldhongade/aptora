@@ -14,6 +14,7 @@ pub struct RegisterRequest {
     pub username: String,
     #[validate(length(min = 6))]
     pub password: String,
+    pub referral_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -47,6 +48,7 @@ pub async fn register(
         email: request.email.clone(),
         username: request.username.clone(),
         password: request.password.clone(),
+        referral_code: request.referral_code.clone(),
     };
 
     // Register user using auth service

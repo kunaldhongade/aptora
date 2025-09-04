@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { apiClient } from '../lib/api';
 
 export interface User {
@@ -30,7 +30,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string) => Promise<void>;
+  register: (email: string, username: string, password: string, referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<void>;
 }
@@ -137,10 +137,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (email: string, username: string, password: string) => {
+  const register = async (email: string, username: string, password: string, referralCode?: string) => {
     try {
       setIsLoading(true);
-      const response = await apiClient.register(email, username, password);
+      const response = await apiClient.register(email, username, password, referralCode);
       storeAuthData(response);
     } catch (error) {
       console.error('Registration error:', error);

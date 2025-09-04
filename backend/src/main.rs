@@ -14,6 +14,7 @@ mod models;
 mod schema;
 mod utils;
 mod kana_client;
+mod social;
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -78,12 +79,26 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::trading::get_funding_rate)
                             .service(handlers::trading::get_market_price)
                     )
-                    .service(
-                        web::scope("/user")
-                            .service(handlers::user::get_profile)
-                            .service(handlers::user::update_profile)
-                            .service(handlers::user::get_balance)
-                    )
+                                         .service(
+                         web::scope("/user")
+                             .service(handlers::user::get_profile)
+                             .service(handlers::user::update_profile)
+                             .service(handlers::user::get_balance)
+                     )
+                     .service(
+                         web::scope("/social")
+                             .service(handlers::social::follow_user)
+                             .service(handlers::social::unfollow_user)
+                             .service(handlers::social::get_followers)
+                             .service(handlers::social::get_following)
+                             .service(handlers::social::get_follow_stats)
+                             .service(handlers::social::get_public_profile)
+                             .service(handlers::social::update_profile)
+                             .service(handlers::social::get_referral_leaderboard)
+                             .service(handlers::social::get_referral_info)
+                             .service(handlers::social::get_referred_users)
+                             .service(handlers::social::check_following_status)
+                     )
             )
     })
     .bind(&bind_address)?
