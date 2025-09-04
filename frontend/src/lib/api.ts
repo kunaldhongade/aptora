@@ -100,10 +100,16 @@ class ApiClient {
   async register(
     email: string,
     username: string,
-    password: string
+    password: string,
+    referralCode?: string
   ): Promise<AuthResponse> {
+    const payload: any = { email, username, password };
+    if (referralCode) {
+      payload.referral_code = referralCode;
+    }
+
     const response: AxiosResponse<ApiResponse<AuthResponse>> =
-      await this.client.post("/auth/register", { email, username, password });
+      await this.client.post("/auth/register", payload);
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Registration failed");
     }

@@ -76,7 +76,7 @@ export const RegisterForm: React.FC = () => {
         setIsLoading(true);
 
         try {
-            await register(email, username, password);
+            await register(email, username, password, referralCode || undefined);
             // Redirect or handle successful registration
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Registration failed');
@@ -176,6 +176,23 @@ export const RegisterForm: React.FC = () => {
                         className="w-full px-3 py-2 bg-surface-600 border border-surface-500 rounded-lg text-text-default placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         placeholder="Confirm your password"
                     />
+                </div>
+
+                <div>
+                    <label htmlFor="referralCode" className="block text-sm font-medium text-text-default mb-2">
+                        Referral Code (Optional)
+                    </label>
+                    <input
+                        type="text"
+                        id="referralCode"
+                        value={referralCode}
+                        onChange={(e) => setReferralCode(e.target.value)}
+                        className="w-full px-3 py-2 bg-surface-600 border border-surface-500 rounded-lg text-text-default placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                        placeholder="Enter referral code if you have one"
+                    />
+                    <p className="mt-1 text-xs text-muted">
+                        Get rewards when your friends sign up using your code!
+                    </p>
                 </div>
 
                 <button

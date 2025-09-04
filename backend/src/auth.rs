@@ -1,4 +1,4 @@
-use crate::models::{User, NewUser, Session, NewSession, UserProfile};
+use crate::models::{User, NewUser, Session, NewSession, UserProfile, AuthUser};
 use crate::schema::{users, sessions};
 use crate::DbPool;
 use crate::utils::AppError;
@@ -30,6 +30,7 @@ pub struct RegisterRequest {
     pub email: String,
     pub username: String,
     pub password: String,
+    pub referral_code: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,7 +77,7 @@ impl AuthService {
     }
 
     // Generate JWT access token (15 minutes)
-    pub fn generate_access_token(user: &User) -> Result<String, AppError> {
+    pub fn generate_access_token(user: &AuthUser) -> Result<String, AppError> {
         let secret = env::var("JWT_SECRET")
             .map_err(|_| AppError::ConfigurationError("JWT_SECRET not set".to_string()))?;
         
@@ -130,7 +131,8 @@ impl AuthService {
         // Check if email already exists
         let existing_user = users::table
             .filter(users::email.eq(&request.email))
-            .first::<User>(conn)
+            .select((users::id, users::email, users::password_hash, users::username))
+            .first::<AuthUser>(conn)
             .optional()
             .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?;
 
@@ -141,7 +143,8 @@ impl AuthService {
         // Check if username already exists
         let existing_username = users::table
             .filter(users::username.eq(&request.username))
-            .first::<User>(conn)
+            .select((users::id, users::email, users::password_hash, users::username))
+            .first::<AuthUser>(conn)
             .optional()
             .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?;
 
@@ -149,14 +152,39 @@ impl AuthService {
             return Err(AppError::BadRequest("Username already exists".to_string()));
         }
 
+        // Handle referral if provided
+        let mut referred_by = None;
+        if let Some(ref referral_code) = request.referral_code {
+            // Find referrer by username
+            let referrer = users::table
+                .filter(users::username.eq(referral_code))
+                .select((users::id, users::email, users::password_hash, users::username))
+                .first::<AuthUser>(conn)
+                .optional()
+                .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?;
+
+            if let Some(referrer_user) = referrer {
+                referred_by = Some(referrer_user.id);
+            } else {
+                return Err(AppError::BadRequest("Invalid referral code".to_string()));
+            }
+        }
+
         // Hash password
         let password_hash = Self::hash_password(&request.password)?;
 
-        // Create new user
+        // Create new user with referral info
         let new_user = NewUser {
             email: request.email,
             username: request.username,
             password_hash,
+            referred_by,
+            referral_count: Some(0),
+            total_referral_rewards: None,
+            bio: None,
+            avatar_url: None,
+            is_verified: Some(false),
+            last_active: Some(Utc::now()),
         };
 
         let user: User = diesel::insert_into(users::table)
@@ -164,14 +192,20 @@ impl AuthService {
             .get_result(conn)
             .map_err(|e| AppError::InternalServerError(format!("Failed to create user: {}", e)))?;
 
-        // Generate tokens
-        let access_token = Self::generate_access_token(&user)?;
+        // Generate tokens (using minimal user data for token)
+        let auth_user = AuthUser {
+            id: user.id,
+            email: user.email.clone(),
+            password_hash: user.password_hash.clone(),
+            username: user.username.clone(),
+        };
+        let access_token = Self::generate_access_token(&auth_user)?;
         let refresh_token = Self::generate_refresh_token();
         let refresh_token_hash = Self::hash_password(&refresh_token)?;
 
         // Store refresh token in sessions table
         let session = NewSession {
-            user_id: user.id,
+            user_id: auth_user.id,
             refresh_token_hash,
             expires_at: Utc::now() + Duration::days(30),
         };
@@ -186,6 +220,12 @@ impl AuthService {
             id: user.id,
             email: user.email,
             username: user.username,
+            bio: user.bio,
+            avatar_url: user.avatar_url,
+            is_verified: user.is_verified,
+            referral_count: user.referral_count,
+            total_referral_rewards: user.total_referral_rewards,
+            last_active: user.last_active,
             created_at: user.created_at,
             updated_at: user.updated_at,
         };
@@ -210,7 +250,8 @@ impl AuthService {
         // Find user by email
         let user = users::table
             .filter(users::email.eq(&request.email))
-            .first::<User>(conn)
+            .select((users::id, users::email, users::password_hash, users::username))
+            .first::<AuthUser>(conn)
             .optional()
             .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?
             .ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
@@ -219,6 +260,12 @@ impl AuthService {
         if !Self::verify_password(&request.password, &user.password_hash)? {
             return Err(AppError::Unauthorized("Invalid credentials".to_string()));
         }
+
+        // Get full user profile data
+        let full_user = users::table
+            .find(user.id)
+            .first::<User>(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get user profile: {}", e)))?;
 
         // Generate tokens
         let access_token = Self::generate_access_token(&user)?;
@@ -239,11 +286,17 @@ impl AuthService {
 
         // Create user profile
         let user_profile = UserProfile {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            created_at: user.created_at,
-            updated_at: user.updated_at,
+            id: full_user.id,
+            email: full_user.email,
+            username: full_user.username,
+            bio: full_user.bio,
+            avatar_url: full_user.avatar_url,
+            is_verified: full_user.is_verified,
+            referral_count: full_user.referral_count,
+            total_referral_rewards: full_user.total_referral_rewards,
+            last_active: full_user.last_active,
+            created_at: full_user.created_at,
+            updated_at: full_user.updated_at,
         };
 
         Ok(AuthResponse {
@@ -273,9 +326,11 @@ impl AuthService {
             .ok_or_else(|| AppError::Unauthorized("Invalid or expired refresh token".to_string()))?;
 
         // Get user
+        let user_id = session.user_id.ok_or_else(|| AppError::InternalServerError("Session has no user_id".to_string()))?;
         let user = users::table
-            .find(session.user_id)
-            .first::<User>(conn)
+            .find(user_id)
+            .select((users::id, users::email, users::password_hash, users::username))
+            .first::<AuthUser>(conn)
             .map_err(|e| AppError::InternalServerError(format!("Failed to get user: {}", e)))?;
 
         // Generate new access token
@@ -324,6 +379,12 @@ impl AuthService {
             id: user.id,
             email: user.email,
             username: user.username,
+            bio: user.bio,
+            avatar_url: user.avatar_url,
+            is_verified: user.is_verified,
+            referral_count: user.referral_count,
+            total_referral_rewards: user.total_referral_rewards,
+            last_active: user.last_active,
             created_at: user.created_at,
             updated_at: user.updated_at,
         })
@@ -349,7 +410,8 @@ impl AuthService {
 
         let existing_user = users::table
             .filter(users::username.eq(username))
-            .first::<User>(conn)
+            .select((users::id, users::email, users::password_hash, users::username))
+            .first::<AuthUser>(conn)
             .optional()
             .map_err(|e| AppError::InternalServerError(format!("Database error: {}", e)))?;
 
