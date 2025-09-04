@@ -212,6 +212,7 @@ export const TraderCard: React.FC<TraderCardProps> = ({
             variant={isFollowing ? 'ghost' : 'primary'}
             size="sm"
             onClick={() => {
+              console.log('TraderCard follow button clicked for:', handle);
               onToggleFollow?.();
             }}
           >

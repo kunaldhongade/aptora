@@ -1,15 +1,18 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { BottomNav } from './components/layout/BottomNav';
+import { Header } from './components/layout/Header';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
+import { Leaderboard } from './pages/Leaderboard';
 import { Markets } from './pages/Markets';
+import { Orders } from './pages/Orders';
+import { Profile } from './pages/Profile';
 import { Referrals } from './pages/Referrals';
+import { Social } from './pages/Social';
 import Trade from './pages/Trade';
 import { Vaults } from './pages/Vaults';
-import { Leaderboard } from './pages/Leaderboard';
-import { Header } from './components/layout/Header';
-import { BottomNav } from './components/layout/BottomNav';
 import './styles/globals.css';
 
 // Protected Route Component
@@ -36,10 +39,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Main App Layout Component
 const AppLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'trade' | 'markets' | 'vaults' | 'referrals' | 'leaderboard'>('dashboard');
+  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'trade' | 'markets' | 'orders' | 'vaults' | 'referrals' | 'leaderboard' | 'social' | 'profile'>('dashboard');
 
   const handleNavigate = (page: string) => {
-    if (page === 'dashboard' || page === 'trade' || page === 'markets' || page === 'vaults' || page === 'referrals' || page === 'leaderboard') {
+    if (page === 'dashboard' || page === 'trade' || page === 'markets' || page === 'orders' || page === 'vaults' || page === 'referrals' || page === 'leaderboard' || page === 'social' || page === 'profile') {
       setActiveTab(page);
     }
   };
@@ -52,21 +55,27 @@ const AppLayout: React.FC = () => {
         return <Trade />;
       case 'markets':
         return <Markets />;
+      case 'orders':
+        return <Orders />;
       case 'vaults':
         return <Vaults />;
       case 'referrals':
         return <Referrals />;
       case 'leaderboard':
         return <Leaderboard />;
+      case 'social':
+        return <Social />;
+      case 'profile':
+        return <Profile />;
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 text-white ">
       <Header currentPage={activeTab} onNavigate={handleNavigate} />
-      <main className="px-5 py-3">
+      <main className="px-5 py-3 max-w-screen-xl mx-auto" >
         {renderContent()}
       </main>
       <BottomNav currentPage={activeTab} onNavigate={handleNavigate} />
@@ -81,7 +90,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/auth" element={<Auth />} />
-          
+
           {/* Protected Routes */}
           <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
@@ -90,7 +99,9 @@ function App() {
           <Route path="/vaults" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
           <Route path="/referrals" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          
+          <Route path="/social" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+
           {/* Catch all route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

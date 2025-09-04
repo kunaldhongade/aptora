@@ -33,6 +33,7 @@ interface AuthContextType {
   register: (email: string, username: string, password: string, referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -177,6 +178,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      setUser({ ...user, ...userData });
+    }
+  };
+
   const value: AuthContextType = {
     user,
     accessToken,
@@ -187,6 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     refreshAccessToken,
+    updateUser,
   };
 
   return (

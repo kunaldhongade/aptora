@@ -2,18 +2,10 @@ import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { apiClient } from '../lib/api';
+import { apiClient, MarketResponse } from '../lib/api';
 
-interface Market {
-  id: string;
-  symbol: string;
-  base_asset: string;
-  quote_asset: string;
-  min_order_size: number;
-  max_order_size: number;
-  tick_size: number;
-  is_active: boolean;
-}
+// Use MarketResponse from API client
+type Market = MarketResponse;
 
 export const Markets: React.FC = () => {
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -24,21 +16,22 @@ export const Markets: React.FC = () => {
   const [sortBy, setSortBy] = useState<'symbol' | 'price' | 'change' | 'volume'>('change');
   const [sortDesc, setSortDesc] = useState(true);
 
-  // Fetch markets from backend
+  // Load markets from Kana Labs API through backend
   useEffect(() => {
-    const fetchMarkets = async () => {
+    const loadMarkets = async () => {
       try {
         setLoading(true);
         const marketsData = await apiClient.getMarkets();
         setMarkets(marketsData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch markets');
+        console.error('Failed to load markets:', err);
+        setError('Failed to load markets data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMarkets();
+    loadMarkets();
   }, []);
 
   const filters = [

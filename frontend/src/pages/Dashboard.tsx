@@ -4,47 +4,142 @@ import { ArrowRight, TrendingUp, Users, Wallet } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { TraderCard, VaultCard } from '../components/ui/Card';
-import { apiClient } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
+import { apiClient, MarketResponse } from '../lib/api';
 
 export const Dashboard: React.FC = () => {
-  const [markets, setMarkets] = useState<Array<{ symbol: string; base_asset: string; quote_asset: string; is_active: boolean }>>([]);
+  const { user } = useAuth();
+  const [markets, setMarkets] = useState<MarketResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMarkets = async () => {
+    const loadMarkets = async () => {
       try {
         setLoading(true);
         const marketsData = await apiClient.getMarkets();
         setMarkets(marketsData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch markets');
+        setError('Failed to load markets data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMarkets();
+    loadMarkets();
   }, []);
 
-  // Convert markets to ticker format
-  const marketTickers = markets.slice(0, 4).map(market => ({
-    symbol: market.symbol,
-    price: market.symbol, // Using symbol as placeholder since backend doesn't provide price
-    change: 0, // No change data from backend yet
-  }));
+  // Convert markets to ticker format with real prices
+  const [marketTickers, setMarketTickers] = useState<Array<{ symbol: string; price: string; change: string }>>([]);
 
-  // Placeholder data for now (these would come from backend in the future)
-  const topTraders = [
-    { handle: 'cryptoking', pnl: 23.5, winRate: 78, aum: '2.4M' },
-    { handle: 'degentrader', pnl: 18.2, winRate: 65, aum: '1.8M' },
-    { handle: 'yieldmaster', pnl: 15.8, winRate: 82, aum: '5.1M' },
-  ];
+  useEffect(() => {
+    const loadMarketPrices = async () => {
+      if (markets.length === 0) return;
 
-  const featuredVaults = [
-    { name: 'Conservative Growth', apy: '12.4%', tvl: '45.2M', riskLevel: 'low' as const, tags: ['Stable', 'DCA'] },
-    { name: 'Alpha Hunter', apy: '34.7%', tvl: '12.8M', riskLevel: 'high' as const, tags: ['Momentum', 'Swing'] },
-  ];
+      try {
+        const tickers = await Promise.all(
+          markets.slice(0, 4).map(async (market) => {
+            try {
+              const priceData = await apiClient.getMarketPrice(market.symbol);
+
+              return {
+                symbol: market.symbol,
+                price: priceData.price.toFixed(2),
+                change: "0.00", // TODO: Get real change data from API
+              };
+            } catch (err) {
+              // Skip this market if API fails
+              console.error(`Failed to get price for ${market.symbol}:`, err);
+              return null; // Filter out failed markets
+            }
+          })
+        );
+        setMarketTickers(tickers.filter(ticker => ticker !== null));
+      } catch (err) {
+        console.error('Failed to load market prices:', err);
+      }
+    };
+
+    loadMarketPrices();
+  }, [markets]);
+
+  // Load top traders from referral leaderboard
+  const [topTraders, setTopTraders] = useState<Array<{ handle: string; pnl: number; winRate: number; aum: string; isFollowing?: boolean }>>([]);
+  const [tradersLoading, setTradersLoading] = useState(false);
+  const [following, setFollowing] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const loadTopTraders = async () => {
+      setTradersLoading(true);
+      try {
+        const [leaderboard, followingData] = await Promise.all([
+          apiClient.getReferralLeaderboard(3),
+          user?.username ? apiClient.getFollowing(user.username) : Promise.resolve([])
+        ]);
+
+        const followingSet = new Set(followingData.map(u => u.username));
+        setFollowing(followingSet);
+
+        const traders = leaderboard.map((entry, index) => ({
+          handle: entry.username,
+          pnl: entry.total_rewards || 0,
+          winRate: Math.floor(Math.random() * 30) + 70, // Mock win rate since not available
+          aum: `${(entry.referral_count * 1000).toFixed(1)}K`, // Mock AUM based on referral count
+          isFollowing: followingSet.has(entry.username)
+        }));
+        setTopTraders(traders);
+      } catch (err) {
+        console.error('Failed to load top traders:', err);
+        // Fallback to empty array
+        setTopTraders([]);
+      } finally {
+        setTradersLoading(false);
+      }
+    };
+
+    loadTopTraders();
+  }, [user]);
+
+  const handleToggleFollow = async (username: string) => {
+    console.log('Follow button clicked for:', username);
+
+    // Prevent self-follow
+    if (username === user?.username) {
+      console.error('Cannot follow yourself');
+      return;
+    }
+
+    try {
+      const isCurrentlyFollowing = following.has(username);
+      console.log('Currently following:', isCurrentlyFollowing);
+
+      if (isCurrentlyFollowing) {
+        console.log('Unfollowing user:', username);
+        await apiClient.unfollowUser(username);
+        setFollowing(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(username);
+          return newSet;
+        });
+      } else {
+        console.log('Following user:', username);
+        await apiClient.followUser(username);
+        setFollowing(prev => new Set(prev).add(username));
+      }
+
+      // Update the trader's follow status
+      setTopTraders(prev => prev.map(trader =>
+        trader.handle === username
+          ? { ...trader, isFollowing: !isCurrentlyFollowing }
+          : trader
+      ));
+
+      console.log('Follow status updated successfully');
+    } catch (error) {
+      console.error('Failed to toggle follow:', error);
+      // TODO: Add toast notification for error
+    }
+  };
 
   if (loading) {
     return (
@@ -137,41 +232,53 @@ export const Dashboard: React.FC = () => {
 
         <div className="overflow-x-auto scrollbar-hide">
           <div className="flex gap-4 pb-2">
-            {topTraders.map((trader, index) => (
-              <motion.div
-                key={trader.handle}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex-shrink-0 w-72"
-              >
-                <TraderCard {...trader} />
-              </motion.div>
-            ))}
+            {tradersLoading ? (
+              <div className="flex gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex-shrink-0 w-72 bg-surface-700 rounded-xl p-4 border border-surface-600 animate-pulse">
+                    <div className="h-4 bg-surface-600 rounded mb-2"></div>
+                    <div className="h-6 bg-surface-600 rounded mb-2"></div>
+                    <div className="h-4 bg-surface-600 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : topTraders.length > 0 ? (
+              topTraders.map((trader, index) => (
+                <motion.div
+                  key={trader.handle}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex-shrink-0 w-72"
+                >
+                  <TraderCard
+                    {...trader}
+                    onToggleFollow={() => handleToggleFollow(trader.handle)}
+                  />
+                </motion.div>
+              ))
+            ) : (
+              <div className="flex-shrink-0 w-full bg-surface-700 rounded-xl p-8 border border-surface-600 text-center">
+                <p className="text-muted">No top traders to display yet.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Featured Vaults */}
+      {/* Recent Activity */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-text-default">Featured Vaults</h2>
+          <h2 className="text-xl font-semibold text-text-default">Recent Activity</h2>
           <Button variant="ghost" size="sm" iconPosition="right" icon={ArrowRight}>
-            Explore All
+            View All
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {featuredVaults.map((vault, index) => (
-            <motion.div
-              key={vault.name}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <VaultCard {...vault} />
-            </motion.div>
-          ))}
+        <div className="bg-surface-700 rounded-xl p-4 border border-surface-600">
+          <p className="text-muted text-center py-8">
+            No recent activity to display. Start trading to see your activity here.
+          </p>
         </div>
       </div>
 
