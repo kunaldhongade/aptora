@@ -1,6 +1,50 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
 import { AuthResponse, RefreshResponse, User } from "../contexts/AuthContext";
 
+// Cache interface
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number; // Time to live in milliseconds
+}
+
+// Simple in-memory cache
+class CacheManager {
+  private cache = new Map<string, CacheEntry<any>>();
+
+  set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): void {
+    // Default 5 minutes
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
+  }
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    const now = Date.now();
+    if (now - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  delete(key: string): void {
+    this.cache.delete(key);
+  }
+}
+
+const cacheManager = new CacheManager();
+
 export interface MarketResponse {
   id: string;
   symbol: string;
@@ -164,11 +208,23 @@ class ApiClient {
 
   // Trading methods - Now using real Kana Labs API through backend
   async getMarkets(): Promise<MarketResponse[]> {
+    const cacheKey = "markets";
+    const cachedData = cacheManager.get<MarketResponse[]>(cacheKey);
+
+    if (cachedData) {
+      console.log("Using cached markets data");
+      return cachedData;
+    }
+
+    console.log("Fetching markets data from API");
     const response: AxiosResponse<ApiResponse<MarketResponse[]>> =
       await this.client.get("/trading/markets");
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get markets");
     }
+
+    // Cache for 10 minutes (markets don't change frequently)
+    cacheManager.set(cacheKey, response.data.data, 10 * 60 * 1000);
     return response.data.data;
   }
 
@@ -176,6 +232,15 @@ class ApiClient {
     symbol: string,
     depth?: number
   ): Promise<OrderbookResponse> {
+    const cacheKey = `orderbook_${symbol}_${depth || 20}`;
+    const cachedData = cacheManager.get<OrderbookResponse>(cacheKey);
+
+    if (cachedData) {
+      console.log(`Using cached orderbook data for ${symbol}`);
+      return cachedData;
+    }
+
+    console.log(`Fetching orderbook data for ${symbol} from API`);
     const response: AxiosResponse<ApiResponse<OrderbookResponse>> =
       await this.client.get(
         `/trading/orderbook/${symbol}${depth ? `?depth=${depth}` : ""}`
@@ -183,6 +248,9 @@ class ApiClient {
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get orderbook");
     }
+
+    // Cache for 10 seconds (orderbook changes very frequently)
+    cacheManager.set(cacheKey, response.data.data, 10 * 1000);
     return response.data.data;
   }
 
@@ -194,28 +262,60 @@ class ApiClient {
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to place order");
     }
+
+    // Invalidate orders and positions cache
+    cacheManager.delete("orders");
+    cacheManager.delete("positions");
+
     return response.data.data;
   }
 
   async getOrders(): Promise<Record<string, unknown>[]> {
+    const cacheKey = "orders";
+    const cachedData = cacheManager.get<Record<string, unknown>[]>(cacheKey);
+
+    if (cachedData) {
+      console.log("Using cached orders data");
+      return cachedData;
+    }
+
+    console.log("Fetching orders data from API");
     const response: AxiosResponse<ApiResponse<Record<string, unknown>[]>> =
       await this.client.get("/trading/orders");
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get orders");
     }
+
+    // Cache for 30 seconds (orders change frequently)
+    cacheManager.set(cacheKey, response.data.data, 30 * 1000);
     return response.data.data;
   }
 
   async cancelOrder(orderId: string): Promise<void> {
     await this.client.delete(`/trading/orders/${orderId}`);
+
+    // Invalidate orders cache
+    cacheManager.delete("orders");
   }
 
   async getPositions(): Promise<Record<string, unknown>[]> {
+    const cacheKey = "positions";
+    const cachedData = cacheManager.get<Record<string, unknown>[]>(cacheKey);
+
+    if (cachedData) {
+      console.log("Using cached positions data");
+      return cachedData;
+    }
+
+    console.log("Fetching positions data from API");
     const response: AxiosResponse<ApiResponse<Record<string, unknown>[]>> =
       await this.client.get("/trading/positions");
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get positions");
     }
+
+    // Cache for 30 seconds (positions change frequently)
+    cacheManager.set(cacheKey, response.data.data, 30 * 1000);
     return response.data.data;
   }
 
@@ -231,6 +331,19 @@ class ApiClient {
   async getMarketPrice(
     symbol: string
   ): Promise<{ symbol: string; price: number; timestamp: string }> {
+    const cacheKey = `market_price_${symbol}`;
+    const cachedData = cacheManager.get<{
+      symbol: string;
+      price: number;
+      timestamp: string;
+    }>(cacheKey);
+
+    if (cachedData) {
+      console.log(`Using cached price data for ${symbol}`);
+      return cachedData;
+    }
+
+    console.log(`Fetching price data for ${symbol} from API`);
     const encodedSymbol = encodeURIComponent(symbol);
     const response: AxiosResponse<
       ApiResponse<{ symbol: string; price: number; timestamp: string }>
@@ -238,6 +351,9 @@ class ApiClient {
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get market price");
     }
+
+    // Cache for 30 seconds (prices change frequently)
+    cacheManager.set(cacheKey, response.data.data, 30 * 1000);
     return response.data.data;
   }
 
@@ -250,6 +366,11 @@ class ApiClient {
     if (!response.data.success) {
       throw new Error(response.data.error || "Failed to follow user");
     }
+
+    // Invalidate related caches
+    cacheManager.delete(`followers_${username}`);
+    cacheManager.delete(`following_${username}`);
+    cacheManager.delete(`user_profile_${username}`);
   }
 
   async unfollowUser(username: string): Promise<void> {
@@ -259,31 +380,69 @@ class ApiClient {
     if (!response.data.success) {
       throw new Error(response.data.error || "Failed to unfollow user");
     }
+
+    // Invalidate related caches
+    cacheManager.delete(`followers_${username}`);
+    cacheManager.delete(`following_${username}`);
+    cacheManager.delete(`user_profile_${username}`);
   }
 
   async getFollowers(username: string): Promise<User[]> {
+    const cacheKey = `followers_${username}`;
+    const cachedData = cacheManager.get<User[]>(cacheKey);
+
+    if (cachedData) {
+      console.log(`Using cached followers data for ${username}`);
+      return cachedData;
+    }
+
+    console.log(`Fetching followers data for ${username} from API`);
     const response: AxiosResponse<ApiResponse<User[]>> = await this.client.get(
       `/social/followers/${username}`
     );
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get followers");
     }
+
+    // Cache for 2 minutes (followers change moderately)
+    cacheManager.set(cacheKey, response.data.data, 2 * 60 * 1000);
     return response.data.data;
   }
 
   async getFollowing(username: string): Promise<User[]> {
+    const cacheKey = `following_${username}`;
+    const cachedData = cacheManager.get<User[]>(cacheKey);
+
+    if (cachedData) {
+      console.log(`Using cached following data for ${username}`);
+      return cachedData;
+    }
+
+    console.log(`Fetching following data for ${username} from API`);
     const response: AxiosResponse<ApiResponse<User[]>> = await this.client.get(
       `/social/following/${username}`
     );
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get following");
     }
+
+    // Cache for 2 minutes (following changes moderately)
+    cacheManager.set(cacheKey, response.data.data, 2 * 60 * 1000);
     return response.data.data;
   }
 
   async getReferralLeaderboard(
     limit: number = 10
   ): Promise<ReferralLeaderboardEntry[]> {
+    const cacheKey = `referral_leaderboard_${limit}`;
+    const cachedData = cacheManager.get<ReferralLeaderboardEntry[]>(cacheKey);
+
+    if (cachedData) {
+      console.log("Using cached referral leaderboard data");
+      return cachedData;
+    }
+
+    console.log("Fetching referral leaderboard data from API");
     const response: AxiosResponse<ApiResponse<ReferralLeaderboardEntry[]>> =
       await this.client.get(`/social/referral-leaderboard?limit=${limit}`);
     if (!response.data.success || !response.data.data) {
@@ -291,16 +450,31 @@ class ApiClient {
         response.data.error || "Failed to get referral leaderboard"
       );
     }
+
+    // Cache for 5 minutes (leaderboard changes moderately)
+    cacheManager.set(cacheKey, response.data.data, 5 * 60 * 1000);
     return response.data.data;
   }
 
   async getUserProfile(username: string): Promise<User> {
+    const cacheKey = `user_profile_${username}`;
+    const cachedData = cacheManager.get<User>(cacheKey);
+
+    if (cachedData) {
+      console.log(`Using cached user profile data for ${username}`);
+      return cachedData;
+    }
+
+    console.log(`Fetching user profile data for ${username} from API`);
     const response: AxiosResponse<ApiResponse<User>> = await this.client.get(
       `/social/profile/${username}`
     );
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get user profile");
     }
+
+    // Cache for 5 minutes (user profiles change moderately)
+    cacheManager.set(cacheKey, response.data.data, 5 * 60 * 1000);
     return response.data.data;
   }
 
@@ -321,6 +495,19 @@ class ApiClient {
     referral_count: number;
     total_rewards?: number;
   }> {
+    const cacheKey = "referral_info";
+    const cachedData = cacheManager.get<{
+      referral_code: string;
+      referral_count: number;
+      total_rewards?: number;
+    }>(cacheKey);
+
+    if (cachedData) {
+      console.log("Using cached referral info data");
+      return cachedData;
+    }
+
+    console.log("Fetching referral info data from API");
     const response: AxiosResponse<
       ApiResponse<{
         referral_code: string;
@@ -331,6 +518,9 @@ class ApiClient {
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get referral info");
     }
+
+    // Cache for 5 minutes (referral info changes moderately)
+    cacheManager.set(cacheKey, response.data.data, 5 * 60 * 1000);
     return response.data.data;
   }
 
@@ -339,12 +529,24 @@ class ApiClient {
     limit: number = 20,
     offset: number = 0
   ): Promise<User[]> {
+    const cacheKey = `referred_users_${limit}_${offset}`;
+    const cachedData = cacheManager.get<User[]>(cacheKey);
+
+    if (cachedData) {
+      console.log(`Using cached referred users data (${limit}, ${offset})`);
+      return cachedData;
+    }
+
+    console.log(`Fetching referred users data (${limit}, ${offset}) from API`);
     const response: AxiosResponse<ApiResponse<User[]>> = await this.client.get(
       `/social/referred-users?limit=${limit}&offset=${offset}`
     );
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get referred users");
     }
+
+    // Cache for 5 minutes (referred users change moderately)
+    cacheManager.set(cacheKey, response.data.data, 5 * 60 * 1000);
     return response.data.data;
   }
 
@@ -356,6 +558,15 @@ class ApiClient {
       throw new Error(response.data.error || "Failed to get follow stats");
     }
     return response.data.data;
+  }
+
+  // Cache management methods
+  clearCache(): void {
+    cacheManager.clear();
+  }
+
+  clearCacheForEndpoint(endpoint: string): void {
+    cacheManager.delete(endpoint);
   }
 
   // Check if current user is following another user
@@ -443,3 +654,6 @@ export interface PlaceOrderRequest {
 }
 
 export const apiClient = new ApiClient();
+
+// Export cache manager for manual cache control
+export { cacheManager };

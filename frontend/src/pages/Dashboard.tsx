@@ -26,8 +26,11 @@ export const Dashboard: React.FC = () => {
       }
     };
 
-    loadMarkets();
-  }, []);
+    // Only load markets if we don't have them already
+    if (markets.length === 0) {
+      loadMarkets();
+    }
+  }, [markets.length]);
 
   // Convert markets to ticker format with real prices
   const [marketTickers, setMarketTickers] = useState<Array<{ symbol: string; price: string; change: string }>>([]);
@@ -37,31 +40,34 @@ export const Dashboard: React.FC = () => {
       if (markets.length === 0) return;
 
       try {
-        const tickers = await Promise.all(
-          markets.slice(0, 4).map(async (market) => {
-            try {
-              const priceData = await apiClient.getMarketPrice(market.symbol);
+        // Only load prices if we don't have tickers yet
+        if (marketTickers.length === 0) {
+          const tickers = await Promise.all(
+            markets.slice(0, 4).map(async (market) => {
+              try {
+                const priceData = await apiClient.getMarketPrice(market.symbol);
 
-              return {
-                symbol: market.symbol,
-                price: priceData.price.toFixed(2),
-                change: "0.00", // TODO: Get real change data from API
-              };
-            } catch (err) {
-              // Skip this market if API fails
-              console.error(`Failed to get price for ${market.symbol}:`, err);
-              return null; // Filter out failed markets
-            }
-          })
-        );
-        setMarketTickers(tickers.filter(ticker => ticker !== null));
+                return {
+                  symbol: market.symbol,
+                  price: priceData.price.toFixed(2),
+                  change: "0.00", // TODO: Get real change data from API
+                };
+              } catch (err) {
+                // Skip this market if API fails
+                console.error(`Failed to get price for ${market.symbol}:`, err);
+                return null; // Filter out failed markets
+              }
+            })
+          );
+          setMarketTickers(tickers.filter(ticker => ticker !== null));
+        }
       } catch (err) {
         console.error('Failed to load market prices:', err);
       }
     };
 
     loadMarketPrices();
-  }, [markets]);
+  }, [markets, marketTickers.length]);
 
   // Load top traders from referral leaderboard
   const [topTraders, setTopTraders] = useState<Array<{ handle: string; pnl: number; winRate: number; aum: string; isFollowing?: boolean }>>([]);
@@ -70,35 +76,38 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const loadTopTraders = async () => {
-      setTradersLoading(true);
-      try {
-        const [leaderboard, followingData] = await Promise.all([
-          apiClient.getReferralLeaderboard(3),
-          user?.username ? apiClient.getFollowing(user.username) : Promise.resolve([])
-        ]);
+      // Only load if we don't have traders yet
+      if (topTraders.length === 0) {
+        setTradersLoading(true);
+        try {
+          const [leaderboard, followingData] = await Promise.all([
+            apiClient.getReferralLeaderboard(3),
+            user?.username ? apiClient.getFollowing(user.username) : Promise.resolve([])
+          ]);
 
-        const followingSet = new Set(followingData.map(u => u.username));
-        setFollowing(followingSet);
+          const followingSet = new Set(followingData.map(u => u.username));
+          setFollowing(followingSet);
 
-        const traders = leaderboard.map((entry, index) => ({
-          handle: entry.username,
-          pnl: entry.total_rewards || 0,
-          winRate: Math.floor(Math.random() * 30) + 70, // Mock win rate since not available
-          aum: `${(entry.referral_count * 1000).toFixed(1)}K`, // Mock AUM based on referral count
-          isFollowing: followingSet.has(entry.username)
-        }));
-        setTopTraders(traders);
-      } catch (err) {
-        console.error('Failed to load top traders:', err);
-        // Fallback to empty array
-        setTopTraders([]);
-      } finally {
-        setTradersLoading(false);
+          const traders = leaderboard.map((entry, index) => ({
+            handle: entry.username,
+            pnl: entry.total_rewards || 0,
+            winRate: Math.floor(Math.random() * 30) + 70, // Mock win rate since not available
+            aum: `${(entry.referral_count * 1000).toFixed(1)}K`, // Mock AUM based on referral count
+            isFollowing: followingSet.has(entry.username)
+          }));
+          setTopTraders(traders);
+        } catch (err) {
+          console.error('Failed to load top traders:', err);
+          // Fallback to empty array
+          setTopTraders([]);
+        } finally {
+          setTradersLoading(false);
+        }
       }
     };
 
     loadTopTraders();
-  }, [user]);
+  }, [user, topTraders.length]);
 
   const handleToggleFollow = async (username: string) => {
     console.log('Follow button clicked for:', username);
