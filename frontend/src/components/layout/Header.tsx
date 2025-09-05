@@ -17,6 +17,7 @@ import {
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
+import { Logo } from '../ui/Logo';
 
 interface HeaderProps {
   currentPage: string;
@@ -46,8 +47,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
-
-              <span className="text-xl font-bold text-text-default">Aptora</span>
+              <Logo size="md" />
             </div>
 
             {/* Desktop Navigation */}

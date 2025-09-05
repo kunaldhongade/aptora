@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
+import { Logo } from '../components/ui/Logo';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 export const Auth: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -21,8 +22,7 @@ export const Auth: React.FC = () => {
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">Aptora</h1>
-          <p className="text-muted">Advanced Perpetual Trading Platform</p>
+          <Logo size="xl" showTagline={true} />
         </div>
 
         {/* Auth Tabs */}
@@ -30,21 +30,19 @@ export const Auth: React.FC = () => {
           <div className="flex">
             <button
               onClick={() => setActiveTab('login')}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
-                activeTab === 'login'
-                  ? 'bg-primary text-white shadow-lg'
-                  : 'text-muted hover:text-text-default'
-              }`}
+              className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${activeTab === 'login'
+                ? 'bg-primary text-white shadow-lg'
+                : 'text-muted hover:text-text-default'
+                }`}
             >
               Login
             </button>
             <button
               onClick={() => setActiveTab('register')}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
-                activeTab === 'register'
-                  ? 'bg-primary text-white shadow-lg'
-                  : 'text-muted hover:text-text-default'
-              }`}
+              className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${activeTab === 'register'
+                ? 'bg-primary text-white shadow-lg'
+                : 'text-muted hover:text-text-default'
+                }`}
             >
               Create Account
             </button>

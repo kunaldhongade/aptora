@@ -89,7 +89,7 @@ export const RegisterForm: React.FC = () => {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-text-default mb-6 text-center">Join Aptora</h2>
+            <h2 className="text-2xl font-bold text-text-default mb-6 text-center">Join <span className="font-press-start text-primary">Aptora</span></h2>
 
             {error && (
                 <div className="mb-4 p-3 bg-danger/20 border border-danger/30 rounded-lg text-danger text-sm">
