@@ -210,7 +210,7 @@ export const Dashboard: React.FC = () => {
         className="text-center py-8"
       >
         <h1 className="text-3xl md:text-4xl font-bold text-text-default mb-3">
-          Trade smarter with <span className="text-primary">Aptora</span>
+          Trade smarter with <span className="text-primary font-press-start">Aptora</span>
         </h1>
         <p className="text-muted mb-6 max-w-md mx-auto">
           Advanced perpetual futures trading powered by Kana Labs.
@@ -295,7 +295,7 @@ export const Dashboard: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-primary/20 to-accent/20 rounded-2xl p-6 border border-primary/30"
+        className="hidden md:block bg-gradient-to-r from-primary/20 to-accent/20 rounded-2xl p-6 border border-primary/30 "
       >
         <div className="flex items-center justify-between">
           <div>
@@ -307,7 +307,7 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <Button variant="primary">
-            Get Started
+            Refer
           </Button>
         </div>
       </motion.div>

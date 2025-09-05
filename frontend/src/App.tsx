@@ -73,9 +73,9 @@ const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white ">
+    <div className="min-h-screen bg-gray-900 text-white overflow-x-hidden">
       <Header currentPage={activeTab} onNavigate={handleNavigate} />
-      <main className="px-5 py-3 max-w-screen-xl mx-auto" >
+      <main className="px-5 py-3 max-w-screen-xl mx-auto">
         {renderContent()}
       </main>
       <BottomNav currentPage={activeTab} onNavigate={handleNavigate} />
