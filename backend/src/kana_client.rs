@@ -3,6 +3,7 @@ use crate::utils::AppError;
 use reqwest::Client;
 use serde_json::Value;
 use std::env;
+use futures;
 
 pub struct KanaClient {
     client: Client,
@@ -19,8 +20,14 @@ impl KanaClient {
         let base_url = env::var("KANA_API_BASE_URL")
             .unwrap_or_else(|_| "https://perps-tradeapi.kanalabs.io".to_string());
 
+        // Create client with timeout to prevent hanging requests
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|e| AppError::ConfigurationError(format!("Failed to create HTTP client: {}", e)))?;
+
         Ok(Self {
-            client: Client::new(),
+            client,
             base_url,
             api_key,
         })
@@ -32,10 +39,17 @@ impl KanaClient {
         // We need to call getMarketInfo for specific market IDs
         // For now, let's return a few popular markets
         let market_ids = vec!["1338", "1339", "1340", "2387"]; // APT, BTC, ETH, SOL
+        
+        // Make all API calls in parallel for better performance
+        let futures: Vec<_> = market_ids.iter()
+            .map(|market_id| self.get_market_info(market_id))
+            .collect();
+        
+        let results = futures::future::join_all(futures).await;
+        
         let mut markets = Vec::new();
-
-        for market_id in market_ids {
-            match self.get_market_info(market_id).await {
+        for (market_id, result) in market_ids.iter().zip(results) {
+            match result {
                 Ok(market) => markets.push(market),
                 Err(e) => {
                     // Log error but continue with other markets
