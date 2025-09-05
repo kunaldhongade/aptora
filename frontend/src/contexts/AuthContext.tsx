@@ -34,6 +34,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
+  manualRefresh: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,17 +69,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setAccessToken(storedAccessToken);
           setRefreshToken(storedRefreshToken);
 
-          // Try to get user profile
+          // Try to get user profile first
           try {
             const userProfile = await apiClient.getProfile();
             setUser(userProfile);
+            console.log('User authenticated successfully');
           } catch (error) {
+            console.log('Profile fetch failed, attempting token refresh...');
             // If getting profile fails, try to refresh token
             try {
               await refreshAccessToken();
+              // Try to get profile again after refresh
+              const userProfile = await apiClient.getProfile();
+              setUser(userProfile);
+              console.log('User authenticated after token refresh');
             } catch (refreshError) {
-              // If refresh fails, clear tokens
-              clearAuthData();
+              console.error('Token refresh failed during initialization:', refreshError);
+              // Only clear tokens if refresh actually failed (not network issues)
+              if (refreshError instanceof Error &&
+                (refreshError.message.includes('expired') ||
+                  refreshError.message.includes('invalid'))) {
+                clearAuthData();
+              }
             }
           }
         }
@@ -93,18 +105,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Set up automatic token refresh
+  // Set up automatic token refresh with retry logic
   useEffect(() => {
     if (!accessToken || !refreshToken) return;
 
-    const refreshInterval = setInterval(async () => {
+    let refreshAttempts = 0;
+    const maxRetries = 3;
+    const retryDelay = 5000; // 5 seconds
+
+    const attemptRefresh = async () => {
       try {
         await refreshAccessToken();
+        refreshAttempts = 0; // Reset on success
       } catch (error) {
-        console.error('Auto token refresh failed:', error);
-        await logout();
+        console.error(`Auto token refresh failed (attempt ${refreshAttempts + 1}):`, error);
+        refreshAttempts++;
+
+        if (refreshAttempts < maxRetries) {
+          // Retry after delay
+          setTimeout(attemptRefresh, retryDelay);
+        } else {
+          // Only logout after all retries failed
+          console.error('All refresh attempts failed, logging out');
+          await logout();
+        }
       }
-    }, 14 * 60 * 1000); // Refresh every 14 minutes (before 15 min expiry)
+    };
+
+    const refreshInterval = setInterval(attemptRefresh, 14 * 60 * 1000); // Refresh every 14 minutes
 
     return () => clearInterval(refreshInterval);
   }, [accessToken, refreshToken]);
@@ -172,8 +200,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await apiClient.refreshToken(refreshToken);
       setAccessToken(response.access_token);
       localStorage.setItem('access_token', response.access_token);
+      console.log('Token refreshed successfully');
     } catch (error) {
       console.error('Token refresh error:', error);
+
+      // Check if it's a network error vs auth error
+      if (error instanceof Error) {
+        if (error.message.includes('Network Error') || error.message.includes('timeout')) {
+          throw new Error('Network error during token refresh');
+        }
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          throw new Error('Refresh token expired or invalid');
+        }
+      }
+
       throw error;
     }
   };
@@ -181,6 +221,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUser = (userData: Partial<User>) => {
     if (user) {
       setUser({ ...user, ...userData });
+    }
+  };
+
+  const manualRefresh = async () => {
+    try {
+      await refreshAccessToken();
+      return true;
+    } catch (error) {
+      console.error('Manual refresh failed:', error);
+      return false;
     }
   };
 
@@ -195,6 +245,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     refreshAccessToken,
     updateUser,
+    manualRefresh,
   };
 
   return (

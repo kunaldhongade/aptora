@@ -50,30 +50,31 @@ export const Social: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const [followersData, followingData, leaderboardData] = await Promise.all([
+            const [followersData, followingData, leaderboardData, allUsersData] = await Promise.all([
                 apiClient.getFollowers(user.username),
                 apiClient.getFollowing(user.username),
-                apiClient.getReferralLeaderboard(50) // Load more users for discovery
+                apiClient.getReferralLeaderboard(10), // Load fewer for leaderboard
+                apiClient.getAllUsers(50, 0) // Load all users for discovery
             ]);
 
             setFollowers(followersData);
             setFollowing(followingData);
             setLeaderboard(leaderboardData);
 
-            // Convert leaderboard entries to user profiles for discover section
-            const discoverUsers = leaderboardData.map(entry => ({
-                id: entry.username, // Use username as ID since we don't have user ID
-                username: entry.username,
-                email: '', // Not available from leaderboard
-                bio: entry.referral_count > 0
-                    ? `Top referrer with ${entry.referral_count} referrals • $${entry.total_rewards?.toFixed(2) || '0.00'} earned`
-                    : 'New trader on Aptora',
-                avatar_url: undefined,
-                is_verified: entry.referral_count > 10, // Mark as verified if they have many referrals
-                referral_count: entry.referral_count,
-                total_rewards: entry.total_rewards,
-                last_active: undefined
-            }));
+            // Use all users for discovery section, excluding current user
+            const discoverUsers = allUsersData
+                .filter(u => u.username !== user.username) // Exclude current user
+                .map(userProfile => ({
+                    id: userProfile.id,
+                    username: userProfile.username,
+                    email: userProfile.email,
+                    bio: userProfile.bio || 'New trader on Aptora',
+                    avatar_url: userProfile.avatar_url,
+                    is_verified: userProfile.is_verified || false,
+                    referral_count: userProfile.referral_count || 0,
+                    total_rewards: userProfile.total_rewards || 0,
+                    last_active: userProfile.last_active
+                }));
             setUsers(discoverUsers);
         } catch (error) {
             console.error('Failed to load social data:', error);

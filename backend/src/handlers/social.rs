@@ -232,3 +232,17 @@ fn extract_user_id_from_token(req: &HttpRequest) -> Result<Uuid, AppError> {
     
     Ok(user_id)
 }
+
+// Get all users for discovery
+#[actix_web::get("/users")]
+pub async fn get_all_users(
+    pool: web::Data<DbPool>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<HttpResponse, AppError> {
+    let limit = query.get("limit").and_then(|s| s.parse::<i64>().ok()).unwrap_or(50);
+    let offset = query.get("offset").and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+    
+    let users = SocialService::get_all_users(&pool, limit, offset).await?;
+    
+    Ok(HttpResponse::Ok().json(ApiResponse::success(users)))
+}

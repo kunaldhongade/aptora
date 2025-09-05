@@ -42,6 +42,9 @@ pub struct GetOrdersQuery {
 // Get all markets from Kana Labs
 #[actix_web::get("/markets")]
 pub async fn get_markets(_pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
+    // TODO: Add Redis caching here for better performance
+    // For now, we'll rely on frontend caching
+    
     let kana_client = KanaClient::new()?;
     let kana_markets = kana_client.get_markets().await?;
     

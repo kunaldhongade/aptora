@@ -170,12 +170,37 @@ class ApiClient {
   }
 
   async refreshToken(refreshToken: string): Promise<RefreshResponse> {
-    const response: AxiosResponse<ApiResponse<RefreshResponse>> =
-      await this.client.post("/auth/refresh", { refresh_token: refreshToken });
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error || "Token refresh failed");
+    try {
+      const response: AxiosResponse<ApiResponse<RefreshResponse>> =
+        await this.client.post(
+          "/auth/refresh",
+          { refresh_token: refreshToken },
+          {
+            timeout: 10000, // 10 second timeout
+          }
+        );
+
+      if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.error || "Token refresh failed");
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      // Enhanced error handling
+      if (error.code === "ECONNABORTED") {
+        throw new Error("Token refresh timeout - please check your connection");
+      }
+      if (error.response?.status === 401) {
+        throw new Error("Refresh token expired or invalid");
+      }
+      if (error.response?.status === 500) {
+        throw new Error("Server error during token refresh");
+      }
+      if (!error.response) {
+        throw new Error("Network error - please check your connection");
+      }
+      throw error;
     }
-    return response.data.data;
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -547,6 +572,29 @@ class ApiClient {
 
     // Cache for 5 minutes (referred users change moderately)
     cacheManager.set(cacheKey, response.data.data, 5 * 60 * 1000);
+    return response.data.data;
+  }
+
+  // Get all users for discovery
+  async getAllUsers(limit: number = 50, offset: number = 0): Promise<User[]> {
+    const cacheKey = `all_users_${limit}_${offset}`;
+    const cachedData = cacheManager.get<User[]>(cacheKey);
+
+    if (cachedData) {
+      console.log(`Using cached all users data (${limit}, ${offset})`);
+      return cachedData;
+    }
+
+    console.log(`Fetching all users data (${limit}, ${offset}) from API`);
+    const response: AxiosResponse<ApiResponse<User[]>> = await this.client.get(
+      `/social/users?limit=${limit}&offset=${offset}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get all users");
+    }
+
+    // Cache for 2 minutes (all users change frequently)
+    cacheManager.set(cacheKey, response.data.data, 2 * 60 * 1000);
     return response.data.data;
   }
 

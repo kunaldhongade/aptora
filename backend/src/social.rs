@@ -1,12 +1,12 @@
 use crate::models::{
-    User, Follow, NewFollow, ReferralReward, NewReferralReward, 
+    User, Follow, NewFollow, 
     PublicUserProfile, ReferralLeaderboardEntry, FollowStats
 };
-use crate::schema::{users, follows, referral_rewards};
+use crate::schema::{users, follows};
 use crate::DbPool;
 use crate::utils::AppError;
 use diesel::prelude::*;
-use chrono::Utc;
+use chrono::{Utc, DateTime};
 use uuid::Uuid;
 // use rust_decimal::Decimal;
 
@@ -399,6 +399,50 @@ impl SocialService {
             .map_err(|e| AppError::InternalServerError(format!("Failed to get referred users: {}", e)))?;
 
         let profiles = referred_users.into_iter()
+            .map(|(id, username, bio, avatar_url, is_verified, referral_count, created_at, last_active)| {
+                PublicUserProfile {
+                    id,
+                    username,
+                    bio,
+                    avatar_url,
+                    is_verified: is_verified,
+                    referral_count: referral_count,
+                    created_at: created_at,
+                    last_active: last_active,
+                }
+            })
+            .collect();
+
+        Ok(profiles)
+    }
+
+    // Get all users for discovery
+    pub async fn get_all_users(
+        pool: &DbPool,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<PublicUserProfile>, AppError> {
+        let conn = &mut pool.get()
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;
+
+        let users = users::table
+            .select((
+                users::id,
+                users::username,
+                users::bio,
+                users::avatar_url,
+                users::is_verified,
+                users::referral_count,
+                users::created_at,
+                users::last_active,
+            ))
+            .order(users::created_at.desc())
+            .limit(limit)
+            .offset(offset)
+            .load::<(Uuid, String, Option<String>, Option<String>, Option<bool>, Option<i32>, Option<DateTime<Utc>>, Option<DateTime<Utc>>)>(conn)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to get users: {}", e)))?;
+
+        let profiles = users.into_iter()
             .map(|(id, username, bio, avatar_url, is_verified, referral_count, created_at, last_active)| {
                 PublicUserProfile {
                     id,

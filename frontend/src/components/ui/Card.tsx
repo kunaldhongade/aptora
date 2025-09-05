@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Star, TrendingDown, TrendingUp } from 'lucide-react';
 import React from 'react';
 import { Button } from './Button';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface CardProps {
   variant?: 'market' | 'vault' | 'trader';
@@ -190,6 +191,12 @@ export const TraderCard: React.FC<TraderCardProps> = ({
   onToggleFollow,
   onClick,
 }) => {
+  // Import useAuth to get current user
+  const { user } = useAuth();
+  
+  // Don't show follow button for current user
+  const isCurrentUser = user?.username === handle;
+  
   return (
     <Card onClick={onClick} className="p-4">
       <div className="space-y-4">
@@ -208,16 +215,18 @@ export const TraderCard: React.FC<TraderCardProps> = ({
             </div>
           </div>
 
-          <Button
-            variant={isFollowing ? 'ghost' : 'primary'}
-            size="sm"
-            onClick={() => {
-              console.log('TraderCard follow button clicked for:', handle);
-              onToggleFollow?.();
-            }}
-          >
-            {isFollowing ? 'Following' : 'Follow'}
-          </Button>
+          {!isCurrentUser && (
+            <Button
+              variant={isFollowing ? 'ghost' : 'primary'}
+              size="sm"
+              onClick={() => {
+                console.log('TraderCard follow button clicked for:', handle);
+                onToggleFollow?.();
+              }}
+            >
+              {isFollowing ? 'Following' : 'Follow'}
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
