@@ -17,17 +17,17 @@ const bottomNavItems = [
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-700 border-t border-surface-600">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-700/95 backdrop-blur-sm border-t border-surface-600 z-50">
       <div className="flex items-center">
         {bottomNavItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
             className={clsx(
-              'flex-1 flex flex-col items-center gap-1 py-3 transition-colors',
+              'flex-1 flex flex-col items-center gap-1 py-3 transition-all duration-200',
               currentPage === item.id
-                ? 'text-primary'
-                : 'text-muted hover:text-text-default'
+                ? 'text-primary bg-primary/10'
+                : 'text-muted hover:text-text-default hover:bg-surface-600/50'
             )}
           >
             <item.icon className="w-5 h-5" />

@@ -3,26 +3,27 @@ import { motion } from 'framer-motion';
 import { ArrowRight, TrendingUp, Users, Wallet } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
-import { TraderCard, VaultCard } from '../components/ui/Card';
+import { TraderCard } from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, MarketResponse } from '../lib/api';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const [markets, setMarkets] = useState<MarketResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadMarkets = async () => {
       try {
-        setLoading(true);
         const marketsData = await apiClient.getMarkets();
         setMarkets(marketsData);
-      } catch (err) {
+      } catch {
         setError('Failed to load markets data');
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -88,7 +89,7 @@ export const Dashboard: React.FC = () => {
           const followingSet = new Set(followingData.map(u => u.username));
           setFollowing(followingSet);
 
-          const traders = leaderboard.map((entry, index) => ({
+          const traders = leaderboard.map((entry) => ({
             handle: entry.username,
             pnl: entry.total_rewards || 0,
             winRate: Math.floor(Math.random() * 30) + 70, // Mock win rate since not available
@@ -150,15 +151,6 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center py-8">
-          <div className="text-muted">Loading dashboard...</div>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -194,9 +186,9 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className={clsx(
                 'text-sm font-medium',
-                ticker.change >= 0 ? 'text-success' : 'text-danger'
+                parseFloat(ticker.change) >= 0 ? 'text-success' : 'text-danger'
               )}>
-                {ticker.change >= 0 ? '+' : ''}{ticker.change}%
+                {parseFloat(ticker.change) >= 0 ? '+' : ''}{ticker.change}%
               </div>
             </motion.div>
           ))}
@@ -218,13 +210,27 @@ export const Dashboard: React.FC = () => {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button size="lg" icon={Wallet}>
+          <Button
+            size="lg"
+            icon={Wallet}
+            onClick={() => onNavigate?.('trade')}
+          >
             Deposit Funds
           </Button>
-          <Button variant="secondary" size="lg" icon={TrendingUp}>
+          <Button
+            variant="secondary"
+            size="lg"
+            icon={TrendingUp}
+            onClick={() => onNavigate?.('trade')}
+          >
             Start Trading
           </Button>
-          <Button variant="ghost" size="lg" icon={Users}>
+          <Button
+            variant="ghost"
+            size="lg"
+            icon={Users}
+            onClick={() => onNavigate?.('social')}
+          >
             Copy Traders
           </Button>
         </div>

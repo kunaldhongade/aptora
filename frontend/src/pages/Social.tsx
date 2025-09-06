@@ -4,7 +4,6 @@ import {
     Award,
     Crown,
     Heart,
-    MessageCircle,
     Search,
     Share2,
     TrendingUp,
@@ -12,8 +11,9 @@ import {
     UserPlus,
     Users
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
+import { CardLoading } from '../components/ui/LoadingAnimation';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, ReferralLeaderboardEntry } from '../lib/api';
 
@@ -39,13 +39,7 @@ export const Social: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'discover' | 'followers' | 'following' | 'leaderboard'>('discover');
     const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        if (user?.username) {
-            loadSocialData();
-        }
-    }, [user]);
-
-    const loadSocialData = async () => {
+    const loadSocialData = useCallback(async () => {
         if (!user?.username) return;
 
         setIsLoading(true);
@@ -68,12 +62,12 @@ export const Social: React.FC = () => {
                     id: userProfile.id,
                     username: userProfile.username,
                     email: userProfile.email,
-                    bio: userProfile.bio || 'New trader on Aptora',
-                    avatar_url: userProfile.avatar_url,
-                    is_verified: userProfile.is_verified || false,
-                    referral_count: userProfile.referral_count || 0,
-                    total_rewards: userProfile.total_rewards || 0,
-                    last_active: userProfile.last_active
+                    bio: (userProfile as any).bio || 'New trader on Aptora',
+                    avatar_url: (userProfile as any).avatar_url,
+                    is_verified: (userProfile as any).is_verified || false,
+                    referral_count: (userProfile as any).referral_count || 0,
+                    total_rewards: (userProfile as any).total_rewards || 0,
+                    last_active: (userProfile as any).last_active
                 }));
             setUsers(discoverUsers);
         } catch (error) {
@@ -81,7 +75,13 @@ export const Social: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user?.username) {
+            loadSocialData();
+        }
+    }, [user, loadSocialData]);
 
     const handleFollow = async (username: string) => {
         // Prevent self-follow
@@ -180,8 +180,9 @@ export const Social: React.FC = () => {
                                 size="sm"
                                 disabled
                                 icon={UserPlus}
+                                className="md:px-3 px-2"
                             >
-                                You
+                                <span className="hidden md:inline">You</span>
                             </Button>
                         ) : isFollowing(userProfile.username) ? (
                             <Button
@@ -189,8 +190,9 @@ export const Social: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleUnfollow(userProfile.username)}
                                 icon={UserMinus}
+                                className="md:px-3 px-2"
                             >
-                                Unfollow
+                                <span className="hidden md:inline">Unfollow</span>
                             </Button>
                         ) : (
                             <Button
@@ -198,8 +200,9 @@ export const Social: React.FC = () => {
                                 size="sm"
                                 onClick={() => handleFollow(userProfile.username)}
                                 icon={UserPlus}
+                                className="md:px-3 px-2"
                             >
-                                Follow
+                                <span className="hidden md:inline">Follow</span>
                             </Button>
                         )}
                     </div>
@@ -299,10 +302,7 @@ export const Social: React.FC = () => {
 
             {/* Content */}
             {isLoading ? (
-                <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-muted">Loading...</p>
-                </div>
+                <CardLoading text="Loading social data..." />
             ) : (
                 <div className="space-y-4">
                     {activeTab === 'discover' && (
@@ -324,8 +324,9 @@ export const Social: React.FC = () => {
                                                         // TODO: Load more users from leaderboard
                                                         console.log('Load more users clicked');
                                                     }}
+                                                    className="md:px-4 px-3"
                                                 >
-                                                    Load More Users
+                                                    <span className="hidden md:inline">Load More Users</span>
                                                 </Button>
                                             </div>
                                         )}
@@ -399,14 +400,14 @@ export const Social: React.FC = () => {
             <div className="bg-surface-700 rounded-xl p-4 border border-surface-600">
                 <h3 className="font-semibold text-text-default mb-3">Quick Actions</h3>
                 <div className="flex gap-3">
-                    <Button variant="primary" icon={Share2}>
-                        Share Your Profile
+                    <Button variant="primary" icon={Share2} className="md:px-4 px-3">
+                        <span className="hidden md:inline">Share Your Profile</span>
                     </Button>
-                    <Button variant="secondary" icon={Users}>
-                        Invite Friends
+                    <Button variant="secondary" icon={Users} className="md:px-4 px-3">
+                        <span className="hidden md:inline">Invite Friends</span>
                     </Button>
-                    <Button variant="ghost" icon={Heart}>
-                        View Activity
+                    <Button variant="ghost" icon={Heart} className="md:px-4 px-3">
+                        <span className="hidden md:inline">View Activity</span>
                     </Button>
                 </div>
             </div>
