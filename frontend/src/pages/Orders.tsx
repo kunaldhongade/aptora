@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, DollarSign, TrendingDown, TrendingUp, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
+import { CardLoading } from '../components/ui/LoadingAnimation';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api';
 
@@ -281,10 +282,7 @@ export const Orders: React.FC = () => {
 
             {/* Content */}
             {isLoading ? (
-                <div className="text-center py-12">
-                    <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                    <p className="text-muted">Loading...</p>
-                </div>
+                <CardLoading text="Loading orders and positions..." />
             ) : (
                 activeTab === 'orders' ? renderOrders() : renderPositions()
             )}

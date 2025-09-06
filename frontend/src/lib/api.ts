@@ -1,4 +1,9 @@
-import axios, { AxiosInstance, AxiosResponse } from "axios";
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from "axios";
 import { AuthResponse, RefreshResponse, User } from "../contexts/AuthContext";
 
 // Cache interface
@@ -10,7 +15,7 @@ interface CacheEntry<T> {
 
 // Simple in-memory cache
 class CacheManager {
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
 
   set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): void {
     // Default 5 minutes
@@ -31,7 +36,7 @@ class CacheManager {
       return null;
     }
 
-    return entry.data;
+    return entry.data as T;
   }
 
   clear(): void {
@@ -91,25 +96,25 @@ class ApiClient {
 
     // Add request interceptor to include auth token
     this.client.interceptors.request.use(
-      (config: any) => {
+      (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem("access_token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
-      (error: any) => {
+      (error: unknown) => {
         return Promise.reject(error);
       }
     );
 
     // Add response interceptor to handle token refresh
     this.client.interceptors.response.use(
-      (response: any) => response,
-      async (error: any) => {
+      (response: AxiosResponse) => response,
+      async (error: AxiosError) => {
         if (error.response?.status === 401) {
           // Check if this is already a refresh request to avoid infinite loop
-          if (error.config.url?.includes("/auth/refresh")) {
+          if (error.config?.url?.includes("/auth/refresh")) {
             // Refresh failed, redirect to login
             localStorage.removeItem("access_token");
             localStorage.removeItem("refresh_token");
@@ -125,10 +130,13 @@ class ApiClient {
               localStorage.setItem("access_token", response.access_token);
 
               // Retry original request
-              error.config.headers.Authorization = `Bearer ${response.access_token}`;
-              return this.client.request(error.config);
+              if (error.config) {
+                error.config.headers = error.config.headers || {};
+                error.config.headers.Authorization = `Bearer ${response.access_token}`;
+                return this.client.request(error.config);
+              }
             }
-          } catch (_refreshError) {
+          } catch {
             // Refresh failed, redirect to login
             localStorage.removeItem("access_token");
             localStorage.removeItem("refresh_token");
@@ -156,7 +164,12 @@ class ApiClient {
     password: string,
     referralCode?: string
   ): Promise<AuthResponse> {
-    const payload: any = { email, username, password };
+    const payload: {
+      email: string;
+      username: string;
+      password: string;
+      referral_code?: string;
+    } = { email, username, password };
     if (referralCode) {
       payload.referral_code = referralCode;
     }
@@ -185,18 +198,38 @@ class ApiClient {
       }
 
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Enhanced error handling
-      if (error.code === "ECONNABORTED") {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ECONNABORTED"
+      ) {
         throw new Error("Token refresh timeout - please check your connection");
       }
-      if (error.response?.status === 401) {
-        throw new Error("Refresh token expired or invalid");
+      if (
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        error.response &&
+        typeof error.response === "object" &&
+        "status" in error.response
+      ) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.status === 401) {
+          throw new Error("Refresh token expired or invalid");
+        }
+        if (axiosError.response?.status === 500) {
+          throw new Error("Server error during token refresh");
+        }
       }
-      if (error.response?.status === 500) {
-        throw new Error("Server error during token refresh");
-      }
-      if (!error.response) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        !error.response
+      ) {
         throw new Error("Network error - please check your connection");
       }
       throw error;
@@ -632,7 +665,7 @@ class ApiClient {
   }
 
   // User profile endpoints (different from social profile)
-  async getUserProfile(): Promise<User> {
+  async getCurrentUserProfile(): Promise<User> {
     const response: AxiosResponse<ApiResponse<User>> = await this.client.get(
       "/user/profile"
     );

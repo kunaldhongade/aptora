@@ -2,32 +2,30 @@ import React from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { BottomNav } from './components/layout/BottomNav';
 import { Header } from './components/layout/Header';
+import { PageLoading } from './components/ui/LoadingAnimation';
+import { AptosWalletProvider } from './contexts/AptosWalletProvider';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Auth } from './pages/Auth';
-import { Dashboard } from './pages/Dashboard';
-import { Leaderboard } from './pages/Leaderboard';
-import { Markets } from './pages/Markets';
-import { Orders } from './pages/Orders';
-import { Profile } from './pages/Profile';
-import { Referrals } from './pages/Referrals';
-import { Social } from './pages/Social';
-import Trade from './pages/Trade';
-import { Vaults } from './pages/Vaults';
 import './styles/globals.css';
+import { LazyWrapper } from './utils/lazyLoad';
+
+// Lazy load all pages
+const Auth = React.lazy(() => import('./pages/Auth').then(m => ({ default: m.Auth })));
+const Dashboard = React.lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Leaderboard = React.lazy(() => import('./pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
+const Markets = React.lazy(() => import('./pages/Markets').then(m => ({ default: m.Markets })));
+const Orders = React.lazy(() => import('./pages/Orders').then(m => ({ default: m.Orders })));
+const Profile = React.lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
+const Referrals = React.lazy(() => import('./pages/Referrals').then(m => ({ default: m.Referrals })));
+const Social = React.lazy(() => import('./pages/Social').then(m => ({ default: m.Social })));
+const Trade = React.lazy(() => import('./pages/Trade'));
+const Vaults = React.lazy(() => import('./pages/Vaults').then(m => ({ default: m.Vaults })));
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoading text="Initializing Aptora..." />;
   }
 
   if (!isAuthenticated) {
@@ -50,25 +48,65 @@ const AppLayout: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard />;
+        return (
+          <LazyWrapper>
+            <Dashboard onNavigate={handleNavigate} />
+          </LazyWrapper>
+        );
       case 'trade':
-        return <Trade />;
+        return (
+          <LazyWrapper>
+            <Trade />
+          </LazyWrapper>
+        );
       case 'markets':
-        return <Markets />;
+        return (
+          <LazyWrapper>
+            <Markets />
+          </LazyWrapper>
+        );
       case 'orders':
-        return <Orders />;
+        return (
+          <LazyWrapper>
+            <Orders />
+          </LazyWrapper>
+        );
       case 'vaults':
-        return <Vaults />;
+        return (
+          <LazyWrapper>
+            <Vaults />
+          </LazyWrapper>
+        );
       case 'referrals':
-        return <Referrals />;
+        return (
+          <LazyWrapper>
+            <Referrals />
+          </LazyWrapper>
+        );
       case 'leaderboard':
-        return <Leaderboard />;
+        return (
+          <LazyWrapper>
+            <Leaderboard />
+          </LazyWrapper>
+        );
       case 'social':
-        return <Social />;
+        return (
+          <LazyWrapper>
+            <Social />
+          </LazyWrapper>
+        );
       case 'profile':
-        return <Profile />;
+        return (
+          <LazyWrapper>
+            <Profile />
+          </LazyWrapper>
+        );
       default:
-        return <Dashboard />;
+        return (
+          <LazyWrapper>
+            <Dashboard onNavigate={handleNavigate} />
+          </LazyWrapper>
+        );
     }
   };
 
@@ -86,26 +124,32 @@ const AppLayout: React.FC = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/auth" element={<Auth />} />
+      <AptosWalletProvider>
+        <AuthProvider>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/auth" element={
+              <LazyWrapper>
+                <Auth />
+              </LazyWrapper>
+            } />
 
-          {/* Protected Routes */}
-          <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/trade" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/markets" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/vaults" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/referrals" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/leaderboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/social" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            {/* Protected Routes */}
+            <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/trade" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/markets" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/vaults" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/referrals" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/leaderboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/social" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
 
-          {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
+            {/* Catch all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </AptosWalletProvider>
     </Router>
   );
 }

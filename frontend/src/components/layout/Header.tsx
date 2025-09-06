@@ -12,12 +12,14 @@ import {
   Users,
   Vault,
   Wallet,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 import { Logo } from '../ui/Logo';
+import { WalletConnect } from '../wallet/WalletConnect';
 
 interface HeaderProps {
   currentPage: string;
@@ -26,6 +28,7 @@ interface HeaderProps {
 
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
+  { id: 'trade', label: 'Trade', icon: Zap },
   { id: 'markets', label: 'Markets', icon: TrendingUp },
   { id: 'orders', label: 'Orders', icon: FileText },
   { id: 'social', label: 'Social', icon: Users },
@@ -46,13 +49,16 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
         <div className="px-4 py-3 max-w-screen-xl mx-auto">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            >
               <Logo size="md" />
-            </div>
+            </button>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {navigation.slice(0, 5).map((item) => (
+              {navigation.slice(0, 6).map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
@@ -71,9 +77,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
 
             {/* Right Actions */}
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" icon={Wallet}>
-                <span className="hidden sm:inline">Connect</span>
-              </Button>
+              <WalletConnect />
 
               {/* User Menu */}
               <div className="flex items-center gap-2">
