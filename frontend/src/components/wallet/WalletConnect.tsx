@@ -10,6 +10,7 @@ import {
     X
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 
 interface WalletConnectProps {
@@ -26,12 +27,26 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({ className }) => {
         network
     } = useWallet();
 
+    const { user, setWalletAddress, isAuthenticated } = useAuth();
+
     // Log wallet connection status for debugging
     React.useEffect(() => {
         if (connected && account) {
             console.log('Wallet connected:', account);
         }
     }, [connected, account]);
+
+    // Auto-set wallet address when wallet connects and user is authenticated
+    React.useEffect(() => {
+        if (connected && account && isAuthenticated && user && !user.wallet_address) {
+            const walletAddress = getAddressString();
+            if (walletAddress) {
+                setWalletAddress(walletAddress).catch(error => {
+                    console.error('Failed to set wallet address:', error);
+                });
+            }
+        }
+    }, [connected, account, isAuthenticated, user, setWalletAddress]);
 
     const [isOpen, setIsOpen] = useState(false);
     const [copied, setCopied] = useState(false);

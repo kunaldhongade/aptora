@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
 import { clsx } from 'clsx';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import React, { useState } from 'react';
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface ChartProps {
   symbol: string;
@@ -26,7 +26,9 @@ export const Chart: React.FC<ChartProps> = ({
   const [activeTimeframe, setActiveTimeframe] = useState('15m');
   const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
 
-  const chartData = data.map(candle => ({
+  // Ensure data is an array and handle errors gracefully
+  const safeData = Array.isArray(data) ? data : [];
+  const chartData = safeData.map(candle => ({
     time: candle.time,
     price: candle.close,
   }));
@@ -53,7 +55,7 @@ export const Chart: React.FC<ChartProps> = ({
           <h3 className="font-semibold text-text-default">{symbol} / USDT</h3>
           <div className="text-right">
             <div className="text-lg font-mono font-semibold text-primary">
-              ${data[data.length - 1]?.close.toFixed(2)}
+              ${safeData.length > 0 ? safeData[safeData.length - 1]?.close.toFixed(2) : '0.00'}
             </div>
             <div className="text-sm text-success">+2.34%</div>
           </div>
@@ -83,7 +85,7 @@ export const Chart: React.FC<ChartProps> = ({
             <button
               key={indicator}
               onClick={() => {
-                setActiveIndicators(prev => 
+                setActiveIndicators(prev =>
                   prev.includes(indicator)
                     ? prev.filter(i => i !== indicator)
                     : [...prev, indicator]
@@ -106,17 +108,17 @@ export const Chart: React.FC<ChartProps> = ({
       <div className="h-64 p-4">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
-            <XAxis 
+            <XAxis
               dataKey="time"
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 10, fill: '#9AA7B2' }}
-              tickFormatter={(time) => new Date(time).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+              tickFormatter={(time) => new Date(time).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
               })}
             />
-            <YAxis 
+            <YAxis
               domain={['dataMin - 5', 'dataMax + 5']}
               axisLine={false}
               tickLine={false}
@@ -124,10 +126,10 @@ export const Chart: React.FC<ChartProps> = ({
               tickFormatter={(price) => `$${price.toFixed(0)}`}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Line 
-              type="monotone" 
-              dataKey="price" 
-              stroke="#3DD1FF" 
+            <Line
+              type="monotone"
+              dataKey="price"
+              stroke="#3DD1FF"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, fill: '#3DD1FF' }}

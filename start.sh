@@ -39,7 +39,7 @@ echo ""
 echo "✅ Backend service is starting!"
 echo ""
 echo "🌐 Access your platform:"
-echo "   Backend:  http://localhost:8080/api/health"
+echo "   Backend:  http://localhost:8081/api/health"
 echo ""
 echo "🚀 To start the frontend (run in a separate terminal):"
 echo "   cd frontend && npm install && npm run dev"
@@ -60,8 +60,8 @@ if [ ! -d "frontend" ]; then
 fi
 
 # Check if backend is running
-if ! curl -s http://localhost:8080/api/health > /dev/null; then
-    echo "⚠️  Warning: Backend is not running at http://localhost:8080"
+if ! curl -s http://localhost:8081/api/health > /dev/null; then
+    echo "⚠️  Warning: Backend is not running at http://localhost:8081"
     echo "Please start the backend first with: ./start.sh"
     echo ""
 fi
@@ -80,7 +80,7 @@ fi
 echo ""
 echo "🌐 Starting frontend development server..."
 echo "Frontend will be available at: http://localhost:5173"
-echo "Backend API: http://localhost:8080/api/health"
+echo "Backend API: http://localhost:8081/api/health"
 echo ""
 echo "Press Ctrl+C to stop the frontend server"
 echo ""

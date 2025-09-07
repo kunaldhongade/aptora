@@ -12,7 +12,7 @@ DATABASE_URL=postgresql://username:password@your-neon-host:5432/neondb?sslmode=r
 
 # Server Configuration
 HOST=127.0.0.1
-PORT=8080
+PORT=8081
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -43,7 +43,7 @@ echo "2. Edit .env file and add your Kana Labs API key"
 echo "3. Start backend: ./start.sh"
 echo "4. Start frontend (in separate terminal): cd frontend && npm install && npm run dev"
 echo "5. Access:"
-echo "   - Backend: http://localhost:8080/api/health"
+echo "   - Backend: http://localhost:8081/api/health"
 echo "   - Frontend: http://localhost:5173"
 echo ""
 echo "🎯 Your Aptora Trading Platform will be ready!"

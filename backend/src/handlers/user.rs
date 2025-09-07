@@ -77,13 +77,33 @@ pub async fn update_profile(
     
     let conn = &mut pool.get().map_err(|_| AppError::InternalServerError("Database connection failed".to_string()))?;
     
-    // Update user profile
-    let updated_user = diesel::update(users::table.find(user_id))
-        .set((
-            users::username.eq(profile_data.username.as_ref().unwrap_or(&"".to_string())),
-            users::updated_at.eq(chrono::Utc::now()),
-        ))
-        .get_result::<User>(conn)?;
+    // Check if username is being updated and if it already exists
+    if let Some(new_username) = &profile_data.username {
+        // Check if username already exists for a different user
+        let existing_user = users::table
+            .filter(users::username.eq(new_username))
+            .filter(users::id.ne(user_id))
+            .first::<User>(conn)
+            .optional()?;
+        
+        if existing_user.is_some() {
+            return Err(AppError::ValidationError("Username already exists".to_string()));
+        }
+    }
+    
+    // Update user profile - only update fields that are provided
+    let updated_user = if let Some(username) = &profile_data.username {
+        diesel::update(users::table.find(user_id))
+            .set((
+                users::username.eq(username),
+                users::updated_at.eq(chrono::Utc::now()),
+            ))
+            .get_result::<User>(conn)?
+    } else {
+        diesel::update(users::table.find(user_id))
+            .set(users::updated_at.eq(chrono::Utc::now()))
+            .get_result::<User>(conn)?
+    };
     
     Ok(HttpResponse::Ok().json(ApiResponse::success(updated_user)))
 }

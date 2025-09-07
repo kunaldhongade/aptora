@@ -52,9 +52,6 @@ pub struct RefreshResponse {
 pub struct AuthService;
 
 impl AuthService {
-    pub fn new() -> Self {
-        Self
-    }
     // Hash password using Argon2id
     pub fn hash_password(password: &str) -> Result<String, AppError> {
         let salt = SaltString::generate(&mut rand::thread_rng());
@@ -391,6 +388,7 @@ impl AuthService {
     }
 
     // Clean up expired sessions
+    #[allow(dead_code)]
     pub async fn cleanup_expired_sessions(pool: &DbPool) -> Result<usize, AppError> {
         let conn = &mut pool.get()
             .map_err(|e| AppError::InternalServerError(format!("Failed to get connection: {}", e)))?;

@@ -91,6 +91,7 @@ fn extract_token_from_request(req: &ServiceRequest) -> Result<String, Error> {
 }
 
 // Helper function to extract claims from request extensions
+#[allow(dead_code)]
 pub fn extract_claims_from_request(req: &HttpRequest) -> Result<Claims, AppError> {
     req.extensions()
         .get::<Claims>()
@@ -99,6 +100,7 @@ pub fn extract_claims_from_request(req: &HttpRequest) -> Result<Claims, AppError
 }
 
 // Helper function to get user ID from request
+#[allow(dead_code)]
 pub fn get_user_id_from_request(req: &HttpRequest) -> Result<uuid::Uuid, AppError> {
     let claims = extract_claims_from_request(req)?;
     uuid::Uuid::parse_str(&claims.sub)

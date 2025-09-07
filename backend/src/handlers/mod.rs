@@ -3,3 +3,4 @@ pub mod health;
 pub mod trading;
 pub mod user;
 pub mod social;
+pub mod wallet;

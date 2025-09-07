@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { VaultCard } from '../components/ui/Card';
 
-// Placeholder data - will be replaced with backend data when vault endpoints are available
-const mockVaults: any[] = [];
+// Vault data will be fetched from backend when vault endpoints are implemented
+const vaults: any[] = [];
 
 export const Vaults: React.FC = () => {
   const [selectedRisk, setSelectedRisk] = useState<string>('all');
@@ -25,7 +25,7 @@ export const Vaults: React.FC = () => {
     { id: 'arbitrage', label: 'Arbitrage' },
   ];
 
-  const filteredVaults = mockVaults.filter(vault => {
+  const filteredVaults = vaults.filter(vault => {
     if (selectedRisk !== 'all' && vault.riskLevel !== selectedRisk) return false;
     if (selectedStrategy !== 'all') {
       const hasStrategy = vault.tags.some(tag =>

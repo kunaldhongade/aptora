@@ -7,7 +7,7 @@ echo "🧪 Running Aptora Backend Tests"
 echo "================================"
 
 # Check if backend is running
-if ! curl -s "http://localhost:8080/api/health" > /dev/null 2>&1; then
+if ! curl -s "http://localhost:8081/api/health" > /dev/null 2>&1; then
     echo "❌ Backend is not running. Please start the backend first with:"
     echo "   docker-compose up backend"
     exit 1

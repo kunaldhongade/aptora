@@ -10,6 +10,6 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
 [env]
-PORT = "8080"
+PORT = "8081"
 RUST_LOG = "info"
 

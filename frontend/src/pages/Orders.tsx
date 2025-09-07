@@ -56,11 +56,16 @@ export const Orders: React.FC = () => {
         setError(null);
 
         try {
+            if (!user?.wallet_address) {
+                setError('Wallet not connected. Please connect your wallet to view orders and positions.');
+                return;
+            }
+
             if (activeTab === 'orders') {
-                const ordersData = await apiClient.getOrders();
+                const ordersData = await apiClient.getOpenOrders(user.wallet_address);
                 setOrders(ordersData as Order[]);
             } else {
-                const positionsData = await apiClient.getPositions();
+                const positionsData = await apiClient.getPositions(user.wallet_address);
                 setPositions(positionsData as Position[]);
             }
         } catch (err) {

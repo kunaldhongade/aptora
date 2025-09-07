@@ -245,14 +245,14 @@ pub struct PositionResponse {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderbookEntry {
     pub price: f64,
     pub quantity: f64,
     pub total: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderbookResponse {
     pub market_id: Uuid,
     pub bids: Vec<OrderbookEntry>,
@@ -277,7 +277,7 @@ pub struct KanaMarket {
     pub is_active: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KanaOrderbook {
     pub symbol: String,
     pub bids: Vec<KanaOrderbookEntry>,
@@ -285,7 +285,7 @@ pub struct KanaOrderbook {
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KanaOrderbookEntry {
     pub price: f64,
     pub size: f64,

@@ -1,5 +1,6 @@
-import React from 'react';
 import { clsx } from 'clsx';
+import { motion } from 'framer-motion';
+import React from 'react';
 
 interface OrderbookEntry {
   price: number;
@@ -27,8 +28,8 @@ export const Orderbook: React.FC<OrderbookProps> = ({
     ...asks.map(a => a.total)
   );
 
-  const OrderRow: React.FC<{ 
-    entry: OrderbookEntry; 
+  const OrderRow: React.FC<{
+    entry: OrderbookEntry;
     side: 'bid' | 'ask';
     index: number;
   }> = ({ entry, side, index }) => (
@@ -47,7 +48,7 @@ export const Orderbook: React.FC<OrderbookProps> = ({
           'absolute inset-0 transition-all duration-300',
           side === 'bid' ? 'bg-success/10' : 'bg-danger/10'
         )}
-        style={{ 
+        style={{
           width: `${(entry.total / maxTotal) * 100}%`,
           right: side === 'ask' ? 0 : 'auto',
           left: side === 'bid' ? 0 : 'auto',
@@ -73,7 +74,7 @@ export const Orderbook: React.FC<OrderbookProps> = ({
       <div className="p-4 border-b border-surface-600">
         <h3 className="font-semibold text-text-default">Order Book</h3>
       </div>
-      
+
       <div className="p-2">
         {/* Header */}
         <div className="grid grid-cols-3 gap-2 py-2 px-2 text-xs font-medium text-muted border-b border-surface-600">

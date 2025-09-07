@@ -88,7 +88,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api",
+      baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api",
       headers: {
         "Content-Type": "application/json",
       },
@@ -299,9 +299,11 @@ class ApiClient {
     }
 
     console.log(`Fetching orderbook data for ${symbol} from API`);
+    // Convert / to - for URL path compatibility
+    const urlSymbol = symbol.replace(/\//g, "-");
     const response: AxiosResponse<ApiResponse<OrderbookResponse>> =
       await this.client.get(
-        `/trading/orderbook/${symbol}${depth ? `?depth=${depth}` : ""}`
+        `/trading/orderbook/${urlSymbol}${depth ? `?depth=${depth}` : ""}`
       );
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || "Failed to get orderbook");
@@ -328,23 +330,52 @@ class ApiClient {
     return response.data.data;
   }
 
-  async getOrders(): Promise<Record<string, unknown>[]> {
-    const cacheKey = "orders";
-    const cachedData = cacheManager.get<Record<string, unknown>[]>(cacheKey);
+  async getChartData(marketId: string): Promise<
+    Array<{
+      time: number;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+    }>
+  > {
+    const cacheKey = `chart_data_${marketId}`;
+    const cachedData = cacheManager.get<
+      Array<{
+        time: number;
+        open: number;
+        high: number;
+        low: number;
+        close: number;
+        volume: number;
+      }>
+    >(cacheKey);
 
     if (cachedData) {
-      console.log("Using cached orders data");
+      console.log(`Using cached chart data for ${marketId}`);
       return cachedData;
     }
 
-    console.log("Fetching orders data from API");
-    const response: AxiosResponse<ApiResponse<Record<string, unknown>[]>> =
-      await this.client.get("/trading/orders");
+    console.log(`Fetching chart data for ${marketId} from API`);
+    const response: AxiosResponse<
+      ApiResponse<
+        Array<{
+          time: number;
+          open: number;
+          high: number;
+          low: number;
+          close: number;
+          volume: number;
+        }>
+      >
+    > = await this.client.get(`/trading/chart-data/${marketId}`);
+
     if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error || "Failed to get orders");
+      throw new Error(response.data.error || "Failed to get chart data");
     }
 
-    // Cache for 30 seconds (orders change frequently)
+    // Cache for 30 seconds (chart data changes frequently)
     cacheManager.set(cacheKey, response.data.data, 30 * 1000);
     return response.data.data;
   }
@@ -354,27 +385,6 @@ class ApiClient {
 
     // Invalidate orders cache
     cacheManager.delete("orders");
-  }
-
-  async getPositions(): Promise<Record<string, unknown>[]> {
-    const cacheKey = "positions";
-    const cachedData = cacheManager.get<Record<string, unknown>[]>(cacheKey);
-
-    if (cachedData) {
-      console.log("Using cached positions data");
-      return cachedData;
-    }
-
-    console.log("Fetching positions data from API");
-    const response: AxiosResponse<ApiResponse<Record<string, unknown>[]>> =
-      await this.client.get("/trading/positions");
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error || "Failed to get positions");
-    }
-
-    // Cache for 30 seconds (positions change frequently)
-    cacheManager.set(cacheKey, response.data.data, 30 * 1000);
-    return response.data.data;
   }
 
   async getFundingRate(symbol: string): Promise<Record<string, unknown>> {
@@ -709,6 +719,220 @@ class ApiClient {
       throw new Error(response.data.error || "Health check failed");
     }
     return response.data.data;
+  }
+
+  // Wallet-related API methods
+  async getProfileAddress(
+    userAddress: string
+  ): Promise<{ profileAddress: string }> {
+    const response: AxiosResponse<ApiResponse<{ profileAddress: string }>> =
+      await this.client.get(
+        `/wallet/profile-address?userAddress=${userAddress}`
+      );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get profile address");
+    }
+    return response.data.data;
+  }
+
+  async getWalletAccountBalance(
+    userAddress: string
+  ): Promise<{ balance: number; asset: string }[]> {
+    const response: AxiosResponse<
+      ApiResponse<{ balance: number; asset: string }[]>
+    > = await this.client.get(
+      `/wallet/account-balance?userAddress=${userAddress}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get wallet balance");
+    }
+    return response.data.data;
+  }
+
+  async getProfileBalanceSnapshot(userAddress: string): Promise<{
+    totalBalance: number;
+    availableBalance: number;
+    usedMargin: number;
+    realizedPnl: number;
+    unrealizedPnl: number;
+    timestamp: string;
+  }> {
+    const response: AxiosResponse<
+      ApiResponse<{
+        totalBalance: number;
+        availableBalance: number;
+        usedMargin: number;
+        realizedPnl: number;
+        unrealizedPnl: number;
+        timestamp: string;
+      }>
+    > = await this.client.get(
+      `/wallet/profile-balance-snapshot?userAddress=${userAddress}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(
+        response.data.error || "Failed to get profile balance snapshot"
+      );
+    }
+    return response.data.data;
+  }
+
+  async deposit(
+    userAddress: string,
+    amount: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      function: string;
+      functionArguments: (string | number)[];
+      typeArguments: string[];
+    };
+  }> {
+    const response: AxiosResponse<
+      ApiResponse<{
+        success: boolean;
+        message: string;
+        data: {
+          function: string;
+          functionArguments: (string | number)[];
+          typeArguments: string[];
+        };
+      }>
+    > = await this.client.get(
+      `/wallet/deposit?userAddress=${userAddress}&amount=${amount}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(
+        response.data.error || "Failed to create deposit payload"
+      );
+    }
+    return response.data.data;
+  }
+
+  async withdrawSpecificMarket(
+    userAddress: string,
+    marketId: string,
+    amount: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      function: string;
+      functionArguments: (string | number)[];
+      typeArguments: string[];
+    };
+  }> {
+    const response: AxiosResponse<
+      ApiResponse<{
+        success: boolean;
+        message: string;
+        data: {
+          function: string;
+          functionArguments: (string | number)[];
+          typeArguments: string[];
+        };
+      }>
+    > = await this.client.get(
+      `/wallet/withdraw-specific-market?userAddress=${userAddress}&marketId=${marketId}&amount=${amount}`
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(
+        response.data.error || "Failed to create withdraw payload"
+      );
+    }
+    return response.data.data;
+  }
+
+  // Updated trading methods to use wallet addresses
+  async getOpenOrders(
+    userAddress: string,
+    marketId?: string
+  ): Promise<Record<string, unknown>[]> {
+    const cacheKey = `open_orders_${userAddress}_${marketId || "all"}`;
+    const cachedData = cacheManager.get<Record<string, unknown>[]>(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    const url = marketId
+      ? `/trading/open-orders?userAddress=${userAddress}&marketId=${marketId}`
+      : `/trading/open-orders?userAddress=${userAddress}`;
+
+    const response: AxiosResponse<
+      ApiResponse<Record<string, unknown> | Record<string, unknown>[]>
+    > = await this.client.get(url);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get open orders");
+    }
+
+    // Handle nested response structure from Kana Labs
+    const orders = Array.isArray(response.data.data)
+      ? response.data.data
+      : ((response.data.data as Record<string, unknown>)?.data as Record<
+          string,
+          unknown
+        >[]) || [];
+
+    cacheManager.set(cacheKey, orders, 30000); // 30 seconds cache
+    return orders;
+  }
+
+  async getOrderHistory(
+    userAddress: string,
+    marketId?: string
+  ): Promise<Record<string, unknown>[]> {
+    const cacheKey = `order_history_${userAddress}_${marketId || "all"}`;
+    const cachedData = cacheManager.get<Record<string, unknown>[]>(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    const url = marketId
+      ? `/trading/order-history?userAddress=${userAddress}&marketId=${marketId}`
+      : `/trading/order-history?userAddress=${userAddress}`;
+
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>[]>> =
+      await this.client.get(url);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get order history");
+    }
+
+    cacheManager.set(cacheKey, response.data.data, 60000); // 1 minute cache
+    return response.data.data;
+  }
+
+  async getPositions(
+    userAddress: string,
+    marketId?: string
+  ): Promise<Record<string, unknown>[]> {
+    const cacheKey = `positions_${userAddress}_${marketId || "all"}`;
+    const cachedData = cacheManager.get<Record<string, unknown>[]>(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    const url = marketId
+      ? `/trading/positions?userAddress=${userAddress}&marketId=${marketId}`
+      : `/trading/positions?userAddress=${userAddress}`;
+
+    const response: AxiosResponse<
+      ApiResponse<Record<string, unknown> | Record<string, unknown>[]>
+    > = await this.client.get(url);
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || "Failed to get positions");
+    }
+
+    // Handle nested response structure from Kana Labs
+    const positions = Array.isArray(response.data.data)
+      ? response.data.data
+      : ((response.data.data as Record<string, unknown>)?.data as Record<
+          string,
+          unknown
+        >[]) || [];
+
+    cacheManager.set(cacheKey, positions, 30000); // 30 seconds cache
+    return positions;
   }
 }
 

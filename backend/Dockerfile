@@ -28,7 +28,7 @@ RUN cargo build --release && rm -rf src
 COPY . .
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8081
 
 # Default command (will be overridden by docker-compose)
 CMD ["cargo", "run"]
