@@ -14,24 +14,54 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const [markets, setMarkets] = useState<MarketResponse[]>([]);
-  // const [loading, setLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState<{ balance: number; asset: string }[]>([]);
+  const [profileBalance, setProfileBalance] = useState<{
+    totalBalance: number;
+    availableBalance: number;
+    usedMargin: number;
+    realizedPnl: number;
+    unrealizedPnl: number;
+    timestamp: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadMarkets = async () => {
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        const marketsData = await apiClient.getMarkets();
-        setMarkets(marketsData);
-      } catch {
-        setError('Failed to load markets data');
+        // Load markets
+        if (markets.length === 0) {
+          const marketsData = await apiClient.getMarkets();
+          setMarkets(marketsData);
+        }
+
+        // Load wallet data if user has wallet address
+        if (user?.wallet_address) {
+          try {
+            const [walletBalanceData, profileBalanceData] = await Promise.all([
+              apiClient.getWalletAccountBalance(user.wallet_address),
+              apiClient.getProfileBalanceSnapshot(user.wallet_address)
+            ]);
+            setWalletBalance(walletBalanceData);
+            setProfileBalance(profileBalanceData);
+          } catch (walletError) {
+            console.error('Failed to load wallet data:', walletError);
+            // Don't set error for wallet data as it's optional
+          }
+        }
+      } catch (err) {
+        setError('Failed to load data');
+        console.error('Dashboard data loading error:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Only load markets if we don't have them already
-    if (markets.length === 0) {
-      loadMarkets();
-    }
-  }, [markets.length]);
+    loadData();
+  }, [user?.wallet_address, markets.length]);
 
   // Convert markets to ticker format with real prices
   const [marketTickers, setMarketTickers] = useState<Array<{ symbol: string; price: string; change: string }>>([]);
@@ -152,6 +182,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="space-y-6">
@@ -235,6 +276,65 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </Button>
         </div>
       </motion.div>
+
+      {/* Wallet Balance Section */}
+      {user?.wallet_address && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-8"
+        >
+          <h2 className="text-xl font-semibold text-text-default mb-4">Wallet Balance</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Wallet Account Balance */}
+            <div className="bg-surface-700 rounded-xl p-4 border border-surface-600">
+              <h3 className="text-sm font-medium text-muted mb-3">Account Balance</h3>
+              {walletBalance.length > 0 ? (
+                <div className="space-y-2">
+                  {walletBalance.map((balance, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span className="text-text-default">{balance.asset}</span>
+                      <span className="font-mono text-text-default">{balance.balance.toFixed(6)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted">No balance data available</p>
+              )}
+            </div>
+
+            {/* Profile Balance Snapshot */}
+            <div className="bg-surface-700 rounded-xl p-4 border border-surface-600">
+              <h3 className="text-sm font-medium text-muted mb-3">Trading Balance</h3>
+              {profileBalance ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-text-default">Total</span>
+                    <span className="font-mono text-text-default">{profileBalance.totalBalance?.toFixed(6) || '0.000000'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-text-default">Available</span>
+                    <span className="font-mono text-success">{profileBalance.availableBalance?.toFixed(6) || '0.000000'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-text-default">Used Margin</span>
+                    <span className="font-mono text-warning">{profileBalance.usedMargin?.toFixed(6) || '0.000000'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-text-default">Unrealized PnL</span>
+                    <span className={`font-mono ${(profileBalance.unrealizedPnl || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                      {profileBalance.unrealizedPnl?.toFixed(6) || '0.000000'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted">No trading balance data available</p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Top Traders */}
       <div>

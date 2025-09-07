@@ -1,21 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
 import { Logo } from '../components/ui/Logo';
-import { useAuth } from '../contexts/AuthContext';
 
 export const Auth: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
-  // Redirect if already authenticated
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard');
-    }
-  }, [isAuthenticated, navigate]);
 
   return (
     <div className="min-h-screen bg-surface-800 flex items-center justify-center p-4">

@@ -5,11 +5,13 @@ use std::fmt;
 #[derive(Debug)]
 pub enum AppError {
     DatabaseError(diesel::result::Error),
+    #[allow(dead_code)]
     DatabaseConnectionError(String),
     BadRequest(String),
     Unauthorized(String),
     ValidationError(String),
     AuthenticationError(String),
+    #[allow(dead_code)]
     AuthorizationError(String),
     NotFoundError(String),
     InternalServerError(String),
@@ -184,6 +186,7 @@ pub struct Pagination {
 }
 
 impl<T> PaginatedResponse<T> {
+    #[allow(dead_code)]
     pub fn new(data: Vec<T>, page: i64, per_page: i64, total: i64) -> Self {
         let total_pages = (total as f64 / per_page as f64).ceil() as i64;
         Self {
@@ -201,6 +204,3 @@ impl<T> PaginatedResponse<T> {
     }
 }
 
-pub fn success_response<T>(data: T) -> ApiResponse<T> {
-    ApiResponse::success(data)
-}

@@ -25,7 +25,7 @@ async fn main() -> std::io::Result<()> {
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let port = env::var("PORT").unwrap_or_else(|_| "8081".to_string());
     let bind_address = format!("{}:{}", host, port);
 
     // Create database connection pool
@@ -78,6 +78,26 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::trading::get_positions)
                             .service(handlers::trading::get_funding_rate)
                             .service(handlers::trading::get_market_price)
+                            .service(handlers::trading::get_chart_data)
+                            .service(handlers::trading::get_open_orders)
+                            .service(handlers::trading::get_order_history)
+                            .service(handlers::trading::place_limit_order)
+                            .service(handlers::trading::cancel_multiple_orders)
+                            .service(handlers::trading::cancel_and_place_multiple_orders)
+                            .service(handlers::trading::get_order_status_by_order_id)
+                            .service(handlers::trading::get_market_price_by_id)
+                            .service(handlers::trading::get_last_placed_price)
+                            .service(handlers::trading::add_margin)
+                            .service(handlers::trading::collapse_position)
+                            .service(handlers::trading::settle_pnl)
+                    )
+                    .service(
+                        web::scope("/wallet")
+                            .service(handlers::wallet::get_profile_address)
+                            .service(handlers::wallet::get_wallet_account_balance)
+                            .service(handlers::wallet::get_profile_balance_snapshot)
+                            .service(handlers::wallet::create_deposit_payload)
+                            .service(handlers::wallet::create_withdraw_specific_market_payload)
                     )
                                          .service(
                          web::scope("/user")

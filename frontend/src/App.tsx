@@ -35,6 +35,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Auth Route Component - redirects if already authenticated
+const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <PageLoading text="Initializing Aptora..." />;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 // Main App Layout Component
 const AppLayout: React.FC = () => {
   const [activeTab, setActiveTab] = React.useState<'dashboard' | 'trade' | 'markets' | 'orders' | 'vaults' | 'referrals' | 'leaderboard' | 'social' | 'profile'>('dashboard');
@@ -129,9 +144,11 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/auth" element={
-              <LazyWrapper>
-                <Auth />
-              </LazyWrapper>
+              <AuthRoute>
+                <LazyWrapper>
+                  <Auth />
+                </LazyWrapper>
+              </AuthRoute>
             } />
 
             {/* Protected Routes */}

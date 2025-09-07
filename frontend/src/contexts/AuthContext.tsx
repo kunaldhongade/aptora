@@ -7,6 +7,8 @@ export interface User {
   username: string;
   created_at: string;
   updated_at: string;
+  wallet_address?: string;
+  profile_address?: string;
 }
 
 export interface AuthResponse {
@@ -35,6 +37,8 @@ interface AuthContextType {
   refreshAccessToken: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
   manualRefresh: () => Promise<boolean>;
+  setWalletAddress: (walletAddress: string) => Promise<void>;
+  getProfileAddress: (walletAddress: string) => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -234,6 +238,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const setWalletAddress = async (walletAddress: string) => {
+    if (!user) {
+      throw new Error('User must be authenticated to set wallet address');
+    }
+
+    try {
+      // Get profile address from Kana Labs API
+      const profileAddressData = await apiClient.getProfileAddress(walletAddress);
+      const profileAddress = profileAddressData.profileAddress;
+
+      // Update user with wallet and profile addresses
+      const updatedUser = {
+        ...user,
+        wallet_address: walletAddress,
+        profile_address: profileAddress,
+      };
+
+      setUser(updatedUser);
+
+      // Update user profile in backend
+      await apiClient.updateUserProfile({
+        wallet_address: walletAddress,
+        profile_address: profileAddress,
+      });
+
+      console.log('Wallet address set successfully:', { walletAddress, profileAddress });
+    } catch (error) {
+      console.error('Failed to set wallet address:', error);
+      throw error;
+    }
+  };
+
+  const getProfileAddress = async (walletAddress: string): Promise<string> => {
+    try {
+      const profileAddressData = await apiClient.getProfileAddress(walletAddress);
+      return profileAddressData.profileAddress;
+    } catch (error) {
+      console.error('Failed to get profile address:', error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     accessToken,
@@ -246,6 +292,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshAccessToken,
     updateUser,
     manualRefresh,
+    setWalletAddress,
+    getProfileAddress,
   };
 
   return (

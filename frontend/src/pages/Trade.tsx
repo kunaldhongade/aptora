@@ -9,6 +9,14 @@ const Trade: React.FC = () => {
   const [selectedMarket, setSelectedMarket] = useState<MarketResponse | null>(null);
   const [markets, setMarkets] = useState<MarketResponse[]>([]);
   const [orderbook, setOrderbook] = useState<OrderbookResponse | null>(null);
+  const [chartData, setChartData] = useState<Array<{
+    time: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,6 +27,7 @@ const Trade: React.FC = () => {
   useEffect(() => {
     if (selectedMarket) {
       fetchOrderbook(selectedMarket.symbol);
+      fetchChartData(selectedMarket.symbol);
     }
   }, [selectedMarket]);
 
@@ -47,6 +56,19 @@ const Trade: React.FC = () => {
     }
   };
 
+  const fetchChartData = async (symbol: string) => {
+    try {
+      // For now, use a default market ID. In production, this should be dynamic based on symbol
+      const marketId = "1338"; // APT-USD market ID
+      const chartData = await apiClient.getChartData(marketId);
+      setChartData(chartData);
+    } catch (err) {
+      console.error('Error loading chart data:', err);
+      // Set empty chart data on error
+      setChartData([]);
+    }
+  };
+
   // Convert API orderbook format to component format
   const convertOrderbookData = (apiOrderbook: OrderbookResponse) => {
     return {
@@ -63,15 +85,7 @@ const Trade: React.FC = () => {
     };
   };
 
-  // Mock chart data for now
-  const mockChartData = Array.from({ length: 50 }, (_, i) => ({
-    time: Date.now() - (50 - i) * 60000,
-    open: 50000 + Math.random() * 1000 - 500,
-    high: 50000 + Math.random() * 1200 - 400,
-    low: 50000 + Math.random() * 800 - 600,
-    close: 50000 + Math.random() * 1000 - 500,
-    volume: Math.random() * 1000000,
-  }));
+  // Chart data is now fetched from the API
 
   if (loading) {
     return (
@@ -123,7 +137,7 @@ const Trade: React.FC = () => {
               <div className="p-4">
                 <h3 className="text-lg font-semibold mb-4">{selectedMarket.symbol} Chart</h3>
                 <Chart
-                  data={mockChartData}
+                  data={chartData}
                   symbol={selectedMarket.symbol}
                 />
               </div>
