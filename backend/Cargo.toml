@@ -10,7 +10,7 @@ actix-cors = "0.7"
 
 # Database
 diesel = { version = "=2.1.6", features = ["postgres", "chrono", "uuid", "numeric", "r2d2"] }
-diesel_migrations = "=2.1.4"
+diesel_migrations = "=2.1.0"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
