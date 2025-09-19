@@ -40,4 +40,4 @@ RUN cargo install diesel_cli --version 2.1.0 --no-default-features --features po
 RUN cargo build --release
 
 # Production startup command with migrations and better error handling
-CMD ["sh", "-c", "echo '🚀 Starting Aptora Backend...' && echo 'DATABASE_URL: $DATABASE_URL' && echo '🔄 Running database migrations...' && diesel migration run --verbose || (echo '❌ Migration failed!' && exit 1) && echo '✅ Migrations completed!' && echo '🚀 Starting server on 0.0.0.0:8081...' && ./target/release/aptora-backend"]
+CMD ["sh", "-c", "echo '🚀 Starting Aptora Backend...' && if [ -z \"$DATABASE_URL\" ]; then echo '❌ DATABASE_URL not set!'; exit 1; fi && echo 'DATABASE_URL is set ✅' && echo '🔄 Running database migrations...' && diesel migration run || (echo '❌ Migration failed!' && exit 1) && echo '✅ Migrations completed!' && echo '🚀 Starting server on 0.0.0.0:8081...' && ./target/release/aptora-backend"]
