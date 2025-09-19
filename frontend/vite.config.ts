@@ -4,6 +4,8 @@ import { defineConfig } from "vite";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  root: ".", // Explicitly set root to current directory
+  publicDir: "public", // Explicitly set public directory
   optimizeDeps: {
     exclude: ["lucide-react"],
   },
