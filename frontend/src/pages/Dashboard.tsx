@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { TraderCard } from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, MarketResponse } from '../lib/api';
+import { getBaseSymbol, getTokenInfo } from '../utils/tokenIcons';
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
@@ -81,7 +82,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 return {
                   symbol: market.symbol,
                   price: priceData.price.toFixed(2),
-                  change: "0.00", // TODO: Get real change data from API
+                  change: "N/A", // Change data not available from current API
                 };
               } catch (err) {
                 // Skip this market if API fails
@@ -101,7 +102,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   }, [markets, marketTickers.length]);
 
   // Load top traders from referral leaderboard
-  const [topTraders, setTopTraders] = useState<Array<{ handle: string; pnl: number; winRate: number; aum: string; isFollowing?: boolean }>>([]);
+  const [topTraders, setTopTraders] = useState<Array<{ handle: string; pnl: number; winRate: number | null; aum: string | null; isFollowing?: boolean }>>([]);
   const [tradersLoading, setTradersLoading] = useState(false);
   const [following, setFollowing] = useState<Set<string>>(new Set());
 
@@ -122,8 +123,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           const traders = leaderboard.map((entry) => ({
             handle: entry.username,
             pnl: entry.total_rewards || 0,
-            winRate: Math.floor(Math.random() * 30) + 70, // Mock win rate since not available
-            aum: `${(entry.referral_count * 1000).toFixed(1)}K`, // Mock AUM based on referral count
+            winRate: null, // Not available from API
+            aum: null, // Not available from API
             isFollowing: followingSet.has(entry.username)
           }));
           setTopTraders(traders);
@@ -204,77 +205,213 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Market Ticker */}
-      <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-4 pb-2">
-          {marketTickers.map((ticker, index) => (
-            <motion.div
-              key={ticker.symbol}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="flex-shrink-0 bg-surface-700 rounded-xl p-3 border border-surface-600 min-w-[140px]"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-black text-xs font-bold">
-                  {ticker.symbol.slice(0, 1)}
+    <div className="w-full max-w-none space-y-6">
+      {/* Smooth Marquee Market Ticker */}
+      <div className="relative overflow-hidden bg-surface-700/50 rounded-2xl border border-surface-600/50 py-4">
+        {/* Gradient overlays for smooth fade effect */}
+        <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-surface-700/50 to-transparent z-10"></div>
+        <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-surface-700/50 to-transparent z-10"></div>
+
+        <div className="flex">
+          {/* First set of tickers */}
+          <motion.div
+            className="flex gap-6 pr-6"
+            animate={{ x: [0, -100 * marketTickers.length] }}
+            transition={{
+              duration: 60, // 60 seconds for full cycle
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          >
+            {[...marketTickers, ...marketTickers, ...marketTickers].map((ticker, index) => {
+              const tokenInfo = getTokenInfo(getBaseSymbol(ticker.symbol));
+              return (
+                <div
+                  key={`${ticker.symbol}-${index}`}
+                  className="flex-shrink-0 bg-surface-700 rounded-xl p-4 border border-surface-600 min-w-[220px] shadow-sm hover:shadow-glow transition-all duration-300"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={tokenInfo.icon}
+                        alt={tokenInfo.name}
+                        className="w-10 h-10 rounded-full shadow-lg flex-shrink-0"
+                        onError={(e) => {
+                          // Fallback to letter if icon fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-black text-sm font-bold shadow-glow flex-shrink-0">
+                                ${ticker.symbol.slice(0, 1)}
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <div className="font-bold text-text-default text-sm truncate">
+                          {ticker.symbol}
+                        </div>
+                        <div className="text-xs text-muted truncate">
+                          {tokenInfo.name}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <div className="text-lg font-mono font-bold text-text-default">
+                        ${ticker.price}
+                      </div>
+                      <div className={clsx(
+                        'text-sm font-semibold flex items-center justify-end gap-1',
+                        parseFloat(ticker.change) >= 0 ? 'text-success' : 'text-danger'
+                      )}>
+                        <span className="text-xs">
+                          {parseFloat(ticker.change) >= 0 ? '▲' : '▼'}
+                        </span>
+                        {parseFloat(ticker.change) >= 0 ? '+' : ''}{ticker.change}%
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <span className="font-medium text-text-default">{ticker.symbol}</span>
-              </div>
-              <div className="text-lg font-mono font-semibold text-text-default">
-                ${ticker.price}
-              </div>
-              <div className={clsx(
-                'text-sm font-medium',
-                parseFloat(ticker.change) >= 0 ? 'text-success' : 'text-danger'
-              )}>
-                {parseFloat(ticker.change) >= 0 ? '+' : ''}{ticker.change}%
-              </div>
-            </motion.div>
-          ))}
+              );
+            })}
+          </motion.div>
         </div>
       </div>
 
-      {/* Hero Section */}
+      {/* Impressive Hero Section */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center py-8"
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/5 via-bg-800 to-primary/10 border border-primary/10 shadow-glow mb-8"
       >
-        <h1 className="text-3xl md:text-4xl font-bold text-text-default mb-3">
-          Trade smarter with <span className="text-primary font-press-start">Aptora</span>
-        </h1>
-        <p className="text-muted mb-6 max-w-md mx-auto">
-          Advanced perpetual futures trading powered by Kana Labs.
-          Copy top traders or manage your own strategies.
-        </p>
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent"></div>
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-primary/3 to-transparent"></div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button
-            size="lg"
-            icon={Wallet}
-            onClick={() => onNavigate?.('trade')}
+        {/* Content Grid */}
+        <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center p-8 lg:p-12">
+
+          {/* Left Content */}
+          <div className="space-y-6 lg:pr-8">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full border border-primary/20 mb-6">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-primary">Live Trading Platform</span>
+              </div>
+
+              <h1 className="text-4xl lg:text-6xl font-bold text-text-default mb-4 leading-tight">
+                Trade Smarter with{' '}
+                <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent font-press-start text-3xl lg:text-4xl block mt-2">
+                  Aptora
+                </span>
+              </h1>
+
+              <p className="text-xl text-muted mb-8 leading-relaxed max-w-lg">
+                Advanced perpetual futures trading powered by <span className="text-primary font-semibold">Kana Labs</span>.
+                Copy top traders, manage strategies, and maximize your profits with cutting-edge tools.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+              className="flex flex-col sm:flex-row gap-4"
+            >
+              <Button
+                size="lg"
+                icon={TrendingUp}
+                onClick={() => onNavigate?.('trade')}
+                className="bg-primary hover:bg-primary/90 text-black font-bold shadow-glow text-lg px-8 py-4"
+              >
+                Start Trading Now
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                icon={Users}
+                onClick={() => onNavigate?.('social')}
+                className="border-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 text-lg px-8 py-4"
+              >
+                Copy Top Traders
+              </Button>
+            </motion.div>
+
+            {/* Stats Row */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="grid grid-cols-3 gap-6 pt-8 border-t border-surface-600/50"
+            >
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">24/7</div>
+                <div className="text-sm text-muted">Trading</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">0%</div>
+                <div className="text-sm text-muted">Gas Fees</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">100+</div>
+                <div className="text-sm text-muted">Markets</div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Right Content - Hero Image */}
+          <motion.div
+            initial={{ opacity: 0, x: 30, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+            className="relative flex justify-center items-center lg:justify-end"
           >
-            Deposit Funds
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            icon={TrendingUp}
-            onClick={() => onNavigate?.('trade')}
-          >
-            Start Trading
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            icon={Users}
-            onClick={() => onNavigate?.('social')}
-          >
-            Copy Traders
-          </Button>
+            <div className="relative">
+              {/* Glow Effects */}
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full blur-3xl scale-110"></div>
+              <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-primary/20 rounded-full blur-2xl animate-pulse"></div>
+              <div className="absolute bottom-1/4 left-1/4 w-24 h-24 bg-primary/15 rounded-full blur-xl animate-pulse delay-1000"></div>
+
+              {/* Hero SVG */}
+              <div className="relative z-10 w-full max-w-lg">
+                <img
+                  src="/hero_img.svg"
+                  alt="Aptora Trading Platform"
+                  className="w-full h-auto filter drop-shadow-2xl hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+
+              {/* Floating Elements */}
+              <motion.div
+                animate={{ y: [-10, 10, -10] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-8 right-8 bg-primary/20 backdrop-blur-sm rounded-2xl p-3 border border-primary/30"
+              >
+                <TrendingUp className="w-6 h-6 text-primary" />
+              </motion.div>
+
+              <motion.div
+                animate={{ y: [10, -10, 10] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute bottom-12 left-8 bg-primary/20 backdrop-blur-sm rounded-2xl p-3 border border-primary/30"
+              >
+                <Wallet className="w-6 h-6 text-primary" />
+              </motion.div>
+            </div>
+          </motion.div>
         </div>
+
+        {/* Bottom Gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-bg-900 to-transparent"></div>
       </motion.div>
 
       {/* Wallet Balance Section */}
@@ -286,7 +423,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           className="mb-8"
         >
           <h2 className="text-xl font-semibold text-text-default mb-4">Wallet Balance</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {/* Wallet Account Balance */}
             <div className="bg-surface-700 rounded-xl p-4 border border-surface-600">
               <h3 className="text-sm font-medium text-muted mb-3">Account Balance</h3>
@@ -346,11 +483,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
 
         <div className="overflow-x-auto scrollbar-hide">
-          <div className="flex gap-4 pb-2">
+          <div className="flex gap-4 pb-2 min-w-max">
             {tradersLoading ? (
-              <div className="flex gap-4">
+              <div className="flex gap-4 min-w-max">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex-shrink-0 w-72 bg-surface-700 rounded-xl p-4 border border-surface-600 animate-pulse">
+                  <div key={i} className="flex-shrink-0 w-80 bg-surface-700 rounded-xl p-4 border border-surface-600 animate-pulse">
                     <div className="h-4 bg-surface-600 rounded mb-2"></div>
                     <div className="h-6 bg-surface-600 rounded mb-2"></div>
                     <div className="h-4 bg-surface-600 rounded"></div>
@@ -364,7 +501,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex-shrink-0 w-72"
+                  className="flex-shrink-0 w-80"
                 >
                   <TraderCard
                     {...trader}

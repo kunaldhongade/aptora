@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 // use rust_decimal::Decimal;
 // use rust_decimal_macros::dec;
@@ -35,8 +35,6 @@ pub struct AuthUser {
     pub password_hash: String,
     pub username: String,
 }
-
-
 
 // Session Models for Refresh Tokens
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable)]
@@ -73,8 +71,6 @@ pub struct UserProfile {
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
-
-
 
 // New Models for Kana Labs Perps
 
@@ -128,8 +124,6 @@ pub struct NewReferralReward {
     pub reward_type: String,
 }
 
-
-
 // Public User Profile (for other users to see)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PublicUserProfile {
@@ -159,7 +153,6 @@ pub struct FollowStats {
     pub following_count: i64,
 }
 
-
 // Insert Models
 #[derive(Debug, Insertable)]
 #[diesel(table_name = crate::schema::users)]
@@ -175,7 +168,6 @@ pub struct NewUser {
     pub is_verified: Option<bool>,
     pub last_active: Option<chrono::DateTime<Utc>>,
 }
-
 
 //     pub size: f64,
 //     pub entry_price: f64,
@@ -219,6 +211,7 @@ pub struct OrderResponse {
     pub leverage: Option<f64>,
     pub margin_type: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub transaction_payload: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -294,7 +287,7 @@ pub struct KanaOrderbookEntry {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KanaOrderRequest {
     pub symbol: String,
-    pub side: String, // "buy" or "sell"
+    pub side: String,       // "buy" or "sell"
     pub order_type: String, // "market" or "limit"
     pub size: f64,
     pub price: Option<f64>,
@@ -311,9 +304,10 @@ pub struct KanaOrderResponse {
     pub size: f64,
     pub price: Option<f64>,
     pub status: String,
-    pub filled_size: f64,
+    pub filled_quantity: f64,
     pub average_price: Option<f64>,
     pub created_at: DateTime<Utc>,
+    pub transaction_payload: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -388,7 +382,6 @@ pub struct KanaPosition {
 //     }
 // }
 
-
 // impl From<Position> for PositionResponse {
 //     fn from(position: Position) -> Self {
 //         Self {
@@ -407,4 +400,3 @@ pub struct KanaPosition {
 //         }
 //     }
 // }
-

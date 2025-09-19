@@ -1,6 +1,8 @@
 import { clsx } from 'clsx';
+import { BarChart3, TrendingUp } from 'lucide-react';
 import React, { useState } from 'react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import TradingViewChart from './TradingViewChart';
 
 interface ChartProps {
   symbol: string;
@@ -13,6 +15,7 @@ interface ChartProps {
     volume: number;
   }>;
   className?: string;
+  chartType?: 'tradingview' | 'recharts';
 }
 
 const timeframes = ['1m', '5m', '15m', '1h', '4h', '1D'];
@@ -22,9 +25,11 @@ export const Chart: React.FC<ChartProps> = ({
   symbol,
   data,
   className,
+  chartType = 'tradingview',
 }) => {
   const [activeTimeframe, setActiveTimeframe] = useState('15m');
   const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
+  const [currentChartType, setCurrentChartType] = useState<'tradingview' | 'recharts'>(chartType);
 
   // Ensure data is an array and handle errors gracefully
   const safeData = Array.isArray(data) ? data : [];
@@ -33,12 +38,12 @@ export const Chart: React.FC<ChartProps> = ({
     price: candle.close,
   }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey: string }>; label?: string }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-bg-800 border border-surface-600 rounded-lg p-3 shadow-lg">
-          <p className="text-xs text-muted">{new Date(label).toLocaleTimeString()}</p>
-          <p className="font-mono font-semibold text-primary">
+          <p className="text-xs text-muted">{label ? new Date(label).toLocaleTimeString() : ''}</p>
+          <p className="font-mono font-semibold text-accent">
             ${payload[0].value.toFixed(2)}
           </p>
         </div>
@@ -47,17 +52,63 @@ export const Chart: React.FC<ChartProps> = ({
     return null;
   };
 
+
+  // If TradingView chart is selected, render it
+  if (currentChartType === 'tradingview') {
+    return (
+      <div className={clsx('bg-surface-700 rounded-2xl border border-surface-600 overflow-hidden flex flex-col', className)}>
+        {/* Chart Type Selector */}
+        <div className="flex items-center justify-between p-4 border-b border-surface-600">
+          <div className="flex items-center space-x-2">
+            <TrendingUp className="w-5 h-5 text-accent" />
+            <h3 className="font-semibold text-text-default">Advanced Trading Chart</h3>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentChartType('recharts')}
+              className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-surface-600 hover:bg-surface-500 text-text-default rounded-md transition-colors"
+            >
+              <BarChart3 className="w-3 h-3" />
+              <span>Simple Chart</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1">
+          <TradingViewChart
+            symbol={symbol}
+            theme="dark"
+            fillParent={true}
+            className="h-full"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={clsx('bg-surface-700 rounded-2xl border border-surface-600', className)}>
       {/* Header */}
       <div className="p-4 border-b border-surface-600">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-text-default">{symbol} / USDT</h3>
-          <div className="text-right">
-            <div className="text-lg font-mono font-semibold text-primary">
-              ${safeData.length > 0 ? safeData[safeData.length - 1]?.close.toFixed(2) : '0.00'}
+          <div className="flex items-center space-x-2">
+            <BarChart3 className="w-5 h-5 text-text-default" />
+            <h3 className="font-semibold text-text-default">{symbol} / USDT</h3>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentChartType('tradingview')}
+              className="flex items-center space-x-1 px-3 py-1.5 text-xs bg-primary hover:bg-primary/80 text-black rounded-md transition-colors shadow-glow"
+            >
+              <TrendingUp className="w-3 h-3" />
+              <span>Advanced Chart</span>
+            </button>
+            <div className="text-right">
+              <div className="text-lg font-mono font-semibold text-accent">
+                ${safeData.length > 0 ? safeData[safeData.length - 1]?.close.toFixed(2) : '0.00'}
+              </div>
+              <div className="text-sm text-muted">Change N/A</div>
             </div>
-            <div className="text-sm text-success">+2.34%</div>
           </div>
         </div>
 
@@ -70,7 +121,7 @@ export const Chart: React.FC<ChartProps> = ({
               className={clsx(
                 'px-3 py-1.5 text-xs font-medium rounded transition-colors',
                 activeTimeframe === tf
-                  ? 'bg-primary text-black'
+                  ? 'bg-primary text-black shadow-glow'
                   : 'text-muted hover:text-text-default'
               )}
             >

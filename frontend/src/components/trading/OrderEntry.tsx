@@ -19,22 +19,41 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'market' | 'limit' | 'trigger'>('market');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
-  const [quantity, setQuantity] = useState<number>(100);
+  const [quantity, setQuantity] = useState<number>(0.1);
   const [leverage, setLeverage] = useState<number>(10);
   const [limitPrice, setLimitPrice] = useState<number>(price);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [quantityError, setQuantityError] = useState<string | null>(null);
 
   const notional = quantity * price;
   const requiredCollateral = notional / leverage;
   const estimatedFee = notional * 0.001; // 0.1% fee
 
+  const handleQuantityChange = (newQuantity: number) => {
+    setQuantity(newQuantity);
+    setQuantityError(null);
+
+    // Clear any existing errors when user changes quantity
+    if (error) {
+      setError(null);
+    }
+  };
+
   const handlePlaceOrder = async () => {
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
+    setQuantityError(null);
+
+    // Validate quantity before submitting
+    if (quantity > 0.15) {
+      setQuantityError("Maximum order size is 0.15 units (Kana Labs limit)");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const orderData = {
@@ -51,7 +70,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
       setSuccess(`Order placed successfully! Order ID: ${result.order_id || 'N/A'}`);
 
       // Reset form
-      setQuantity(100);
+      setQuantity(0.1);
       setLimitPrice(price);
 
     } catch (err) {
@@ -94,7 +113,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
           className={clsx(
             'flex-1 py-3 text-sm font-semibold rounded-md transition-colors',
             side === 'buy'
-              ? 'bg-success text-black'
+              ? 'bg-primary text-black shadow-glow'
               : 'text-muted hover:text-text-default'
           )}
         >
@@ -105,7 +124,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
           className={clsx(
             'flex-1 py-3 text-sm font-semibold rounded-md transition-colors',
             side === 'sell'
-              ? 'bg-danger text-white'
+              ? 'bg-sell-red text-white shadow-glow-red'
               : 'text-muted hover:text-text-default'
           )}
         >
@@ -116,14 +135,23 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
       {/* Order Form */}
       <div className="space-y-4">
         <NumberInput
-          label="Quantity (USDT)"
+          label="Quantity (Units)"
           value={quantity}
-          onChange={setQuantity}
-          min={1}
-          max={100000}
-          step={1}
+          onChange={handleQuantityChange}
+          min={0.01}
+          max={0.15}
+          step={0.01}
           showMaxButton={true}
+          errorMessage={quantityError || undefined}
         />
+
+        {/* Size Limit Info */}
+        <div className="text-xs text-muted bg-bg-800 p-2 rounded-lg">
+          <div className="flex items-center gap-1">
+            <span className="text-yellow-400">⚠️</span>
+            <span>Maximum order size: 0.15 units (Kana Labs limit)</span>
+          </div>
+        </div>
 
         {activeTab !== 'market' && (
           <NumberInput
@@ -203,9 +231,14 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
         <Button
           variant={side === 'buy' ? 'primary' : 'destructive'}
           size="lg"
-          className="w-full"
+          className={clsx(
+            "w-full font-semibold",
+            side === 'buy'
+              ? 'bg-primary hover:bg-primary/90 text-black shadow-glow'
+              : 'bg-sell-red hover:bg-sell-red/90 text-white shadow-glow-red'
+          )}
           onClick={handlePlaceOrder}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !!quantityError}
         >
           {isSubmitting ? 'PLACING ORDER...' : `${side === 'buy' ? 'BUY' : 'SELL'} ${symbol}`}
         </Button>

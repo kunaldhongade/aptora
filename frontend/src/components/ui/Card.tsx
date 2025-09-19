@@ -2,8 +2,8 @@ import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import { Star, TrendingDown, TrendingUp } from 'lucide-react';
 import React from 'react';
-import { Button } from './Button';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button } from './Button';
 
 interface CardProps {
   variant?: 'market' | 'vault' | 'trader';
@@ -37,8 +37,8 @@ interface TraderCardProps {
   handle: string;
   avatar?: string;
   pnl: number;
-  winRate: number;
-  aum: string;
+  winRate: number | null;
+  aum: string | null;
   isFollowing?: boolean;
   onToggleFollow?: () => void;
   onClick?: () => void;
@@ -193,10 +193,10 @@ export const TraderCard: React.FC<TraderCardProps> = ({
 }) => {
   // Import useAuth to get current user
   const { user } = useAuth();
-  
+
   // Don't show follow button for current user
   const isCurrentUser = user?.username === handle;
-  
+
   return (
     <Card onClick={onClick} className="p-4">
       <div className="space-y-4">
@@ -211,7 +211,9 @@ export const TraderCard: React.FC<TraderCardProps> = ({
             )}
             <div>
               <h3 className="font-semibold text-text-default">@{handle}</h3>
-              <p className="text-sm text-muted">AUM ${aum}</p>
+              <p className="text-sm text-muted">
+                {aum ? `AUM $${aum}` : 'AUM N/A'}
+              </p>
             </div>
           </div>
 
@@ -243,7 +245,7 @@ export const TraderCard: React.FC<TraderCardProps> = ({
           <div>
             <span className="text-sm text-muted">Win Rate</span>
             <div className="text-lg font-mono font-semibold text-text-default">
-              {winRate.toFixed(0)}%
+              {winRate ? `${winRate.toFixed(0)}%` : 'N/A'}
             </div>
           </div>
         </div>

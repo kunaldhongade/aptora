@@ -129,7 +129,7 @@ export const Social: React.FC = () => {
         >
             <div className="flex items-center gap-4">
                 <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-black font-bold text-lg">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary rounded-full flex items-center justify-center text-black font-bold text-lg shadow-glow">
                         {userProfile.username.slice(0, 2).toUpperCase()}
                     </div>
                     {userProfile.is_verified && (
@@ -256,7 +256,7 @@ export const Social: React.FC = () => {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="w-full max-w-none space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-text-default mb-2">Social Network</h1>
                 <p className="text-muted">
@@ -290,7 +290,7 @@ export const Social: React.FC = () => {
                         className={clsx(
                             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                             activeTab === tab.id
-                                ? 'bg-primary text-black'
+                                ? 'bg-primary text-black shadow-glow'
                                 : 'text-muted hover:text-text-default'
                         )}
                     >
@@ -311,12 +311,12 @@ export const Social: React.FC = () => {
                                 <h2 className="text-lg font-semibold text-text-default">Discover Users</h2>
                                 <span className="text-sm text-muted">{filteredUsers.length} users found</span>
                             </div>
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {filteredUsers.length > 0 ? (
                                     <>
                                         {filteredUsers.map(userProfile => renderUserCard(userProfile))}
                                         {!searchTerm && (
-                                            <div className="text-center pt-4">
+                                            <div className="col-span-full text-center pt-4">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -332,12 +332,12 @@ export const Social: React.FC = () => {
                                         )}
                                     </>
                                 ) : searchTerm ? (
-                                    <div className="text-center py-12 text-muted">
+                                    <div className="col-span-full text-center py-12 text-muted">
                                         <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
                                         <p>No users found matching "{searchTerm}". Try adjusting your search.</p>
                                     </div>
                                 ) : (
-                                    <div className="text-center py-12 text-muted">
+                                    <div className="col-span-full text-center py-12 text-muted">
                                         <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
                                         <p>No users available to discover yet.</p>
                                     </div>
@@ -349,11 +349,11 @@ export const Social: React.FC = () => {
                     {activeTab === 'followers' && (
                         <div>
                             <h2 className="text-lg font-semibold text-text-default mb-4">Your Followers</h2>
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {followers.length > 0 ? (
                                     followers.map(userProfile => renderUserCard(userProfile, false))
                                 ) : (
-                                    <div className="text-center py-12 text-muted">
+                                    <div className="col-span-full text-center py-12 text-muted">
                                         <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
                                         <p>No followers yet. Start sharing your trading insights!</p>
                                     </div>
@@ -365,11 +365,11 @@ export const Social: React.FC = () => {
                     {activeTab === 'following' && (
                         <div>
                             <h2 className="text-lg font-semibold text-text-default mb-4">People You Follow</h2>
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {following.length > 0 ? (
                                     following.map(userProfile => renderUserCard(userProfile))
                                 ) : (
-                                    <div className="text-center py-12 text-muted">
+                                    <div className="col-span-full text-center py-12 text-muted">
                                         <UserPlus className="w-12 h-12 mx-auto mb-4 opacity-50" />
                                         <p>You're not following anyone yet. Discover amazing traders!</p>
                                     </div>

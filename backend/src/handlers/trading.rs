@@ -1,7 +1,7 @@
-use crate::DbPool;
+use crate::kana_client::KanaClient;
 use crate::models::*;
 use crate::utils::{ApiResponse, AppError};
-use crate::kana_client::KanaClient;
+use crate::DbPool;
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -29,31 +29,57 @@ pub struct GetOrderbookRequest {
     pub depth: Option<u32>,
 }
 
-
 // Get all markets from Kana Labs
 #[actix_web::get("/markets")]
 pub async fn get_markets(_pool: web::Data<DbPool>) -> Result<HttpResponse, AppError> {
     // TODO: Add Redis caching here for better performance
     // For now, we'll rely on frontend caching
-    
+
     let kana_client = KanaClient::new()?;
-    
+
     // Get markets from KanaClient (which now returns fallback data)
     let kana_markets = kana_client.get_markets().await?;
-    
+
     // Convert Kana markets to our MarketResponse format
-    let market_responses: Vec<MarketResponse> = kana_markets.into_iter().map(|kana_market| {
-        MarketResponse {
-            id: uuid::Uuid::new_v4(), // Generate new UUID for our system
-            symbol: kana_market.get("symbol").and_then(|v| v.as_str()).unwrap_or("UNKNOWN").to_string(),
-            base_asset: kana_market.get("base_asset").and_then(|v| v.as_str()).unwrap_or("UNKNOWN").to_string(),
-            quote_asset: kana_market.get("quote_asset").and_then(|v| v.as_str()).unwrap_or("USDC").to_string(),
-            min_order_size: kana_market.get("min_order_size").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            max_order_size: kana_market.get("max_order_size").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            tick_size: kana_market.get("tick_size").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            is_active: kana_market.get("is_active").and_then(|v| v.as_bool()).unwrap_or(false),
-        }
-    }).collect();
+    let market_responses: Vec<MarketResponse> = kana_markets
+        .into_iter()
+        .map(|kana_market| {
+            MarketResponse {
+                id: uuid::Uuid::new_v4(), // Generate new UUID for our system
+                symbol: kana_market
+                    .get("symbol")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("UNKNOWN")
+                    .to_string(),
+                base_asset: kana_market
+                    .get("base_asset")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("UNKNOWN")
+                    .to_string(),
+                quote_asset: kana_market
+                    .get("quote_asset")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("USDC")
+                    .to_string(),
+                min_order_size: kana_market
+                    .get("min_order_size")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                max_order_size: kana_market
+                    .get("max_order_size")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                tick_size: kana_market
+                    .get("tick_size")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                is_active: kana_market
+                    .get("is_active")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+            }
+        })
+        .collect();
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(market_responses)))
 }
@@ -68,24 +94,64 @@ pub async fn get_orderbook(
 ) -> Result<HttpResponse, AppError> {
     let _symbol = path.into_inner();
     let _depth = query.depth.unwrap_or(20);
-    
+
     // Return mock orderbook data since Kana Labs doesn't provide orderbook endpoint
     // In production, you would aggregate data from getAllTrades or use a different data source
     let orderbook_response = OrderbookResponse {
         market_id: uuid::Uuid::new_v4(),
         bids: vec![
-            OrderbookEntry { price: 8.49, quantity: 100.0, total: 849.0 },
-            OrderbookEntry { price: 8.48, quantity: 150.0, total: 1272.0 },
-            OrderbookEntry { price: 8.47, quantity: 200.0, total: 1694.0 },
-            OrderbookEntry { price: 8.46, quantity: 175.0, total: 1480.5 },
-            OrderbookEntry { price: 8.45, quantity: 125.0, total: 1056.25 },
+            OrderbookEntry {
+                price: 8.49,
+                quantity: 100.0,
+                total: 849.0,
+            },
+            OrderbookEntry {
+                price: 8.48,
+                quantity: 150.0,
+                total: 1272.0,
+            },
+            OrderbookEntry {
+                price: 8.47,
+                quantity: 200.0,
+                total: 1694.0,
+            },
+            OrderbookEntry {
+                price: 8.46,
+                quantity: 175.0,
+                total: 1480.5,
+            },
+            OrderbookEntry {
+                price: 8.45,
+                quantity: 125.0,
+                total: 1056.25,
+            },
         ],
         asks: vec![
-            OrderbookEntry { price: 8.51, quantity: 120.0, total: 1021.2 },
-            OrderbookEntry { price: 8.52, quantity: 180.0, total: 1533.6 },
-            OrderbookEntry { price: 8.53, quantity: 250.0, total: 2132.5 },
-            OrderbookEntry { price: 8.54, quantity: 220.0, total: 1878.8 },
-            OrderbookEntry { price: 8.55, quantity: 190.0, total: 1624.5 },
+            OrderbookEntry {
+                price: 8.51,
+                quantity: 120.0,
+                total: 1021.2,
+            },
+            OrderbookEntry {
+                price: 8.52,
+                quantity: 180.0,
+                total: 1533.6,
+            },
+            OrderbookEntry {
+                price: 8.53,
+                quantity: 250.0,
+                total: 2132.5,
+            },
+            OrderbookEntry {
+                price: 8.54,
+                quantity: 220.0,
+                total: 1878.8,
+            },
+            OrderbookEntry {
+                price: 8.55,
+                quantity: 190.0,
+                total: 1624.5,
+            },
         ],
         last_updated: chrono::Utc::now(),
     };
@@ -100,10 +166,12 @@ pub async fn place_order(
     _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
     let order_data = order_data.into_inner();
-    order_data.validate().map_err(|e| AppError::ValidationError(e.to_string()))?;
+    order_data
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
     let kana_client = KanaClient::new()?;
-    
+
     // Convert our order request to Kana Labs format
     let kana_order = KanaOrderRequest {
         symbol: order_data.symbol,
@@ -114,9 +182,9 @@ pub async fn place_order(
         leverage: order_data.leverage,
         margin_type: order_data.margin_type,
     };
-    
+
     let kana_response = kana_client.place_order(&kana_order).await?;
-    
+
     // Convert Kana response to our OrderResponse format
     let order_response = OrderResponse {
         id: uuid::Uuid::new_v4(), // Generate new UUID for our system
@@ -126,11 +194,12 @@ pub async fn place_order(
         quantity: kana_response.size,
         price: kana_response.price,
         status: kana_response.status,
-        filled_quantity: kana_response.filled_size, // Use filled_size from Kana API
+        filled_quantity: kana_response.filled_quantity, // Use filled_quantity from Kana API
         average_price: kana_response.average_price,
         leverage: Some(1.0), // Default to 1x leverage since not provided by Kana API
         margin_type: Some("cross".to_string()), // Default to cross margin since not provided by Kana API
         created_at: chrono::Utc::now(),
+        transaction_payload: kana_response.transaction_payload, // Pass the transaction payload
     };
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(order_response)))
@@ -150,9 +219,9 @@ pub async fn cancel_order(
 ) -> Result<HttpResponse, AppError> {
     let order_id = order_id.into_inner();
     let kana_client = KanaClient::new()?;
-    
+
     kana_client.cancel_order(&order_id).await?;
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::success_with_message(
         (),
         "Order cancelled successfully".to_string(),
@@ -168,15 +237,17 @@ pub async fn get_positions(
     let user_address = query
         .get("userAddress")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| AppError::ValidationError("userAddress parameter is required".to_string()))?;
-    
-    let market_id = query
-        .get("marketId")
-        .and_then(|v| v.as_str());
-    
+        .ok_or_else(|| {
+            AppError::ValidationError("userAddress parameter is required".to_string())
+        })?;
+
+    let market_id = query.get("marketId").and_then(|v| v.as_str());
+
     let kana_client = KanaClient::new()?;
-    let positions = kana_client.get_positions_with_user_address(user_address, market_id).await?;
-    
+    let positions = kana_client
+        .get_positions_with_user_address(user_address, market_id)
+        .await?;
+
     Ok(HttpResponse::Ok().json(ApiResponse::success(positions)))
 }
 
@@ -188,9 +259,9 @@ pub async fn get_funding_rate(
 ) -> Result<HttpResponse, AppError> {
     let symbol = symbol.into_inner();
     let kana_client = KanaClient::new()?;
-    
+
     let funding_rate = kana_client.get_funding_rate(&symbol).await?;
-    
+
     #[derive(Serialize)]
     struct FundingRateResponse {
         symbol: String,
@@ -213,7 +284,7 @@ pub async fn get_market_price(
 ) -> Result<HttpResponse, AppError> {
     let symbol = symbol.into_inner();
     let kana_client = KanaClient::new()?;
-    
+
     // Try to get price from Kana Labs API, fallback to mock data if it fails
     let price = match kana_client.get_market_price(&symbol).await {
         Ok(price) => price,
@@ -224,11 +295,11 @@ pub async fn get_market_price(
                 "BTC/USDC" | "BTC-USDC" => 45000.0,
                 "ETH/USDC" | "ETH-USDC" => 3200.0,
                 "SOL/USDC" | "SOL-USDC" | "SOL-USD" => 95.0,
-                _ => 0.0
+                _ => 0.0,
             }
         }
     };
-    
+
     #[derive(Serialize)]
     struct PriceResponse {
         symbol: String,
@@ -253,29 +324,36 @@ pub async fn get_chart_data(
 ) -> Result<HttpResponse, AppError> {
     let market_id = market_id.into_inner();
     let kana_client = KanaClient::new()?;
-    
+
     let trades_data = kana_client.get_all_trades(&market_id).await?;
-    
+
     // Transform the Kana Labs data into chart-friendly format
     let chart_data = if let Some(data_array) = trades_data.get("data").and_then(|d| d.as_array()) {
-        data_array.iter().map(|trade| {
-            let price = trade.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0) / 1_000_000.0; // Convert from micro units
-            let size = trade.get("size").and_then(|s| s.as_f64()).unwrap_or(0.0) / 1_000_000.0; // Convert from micro units
-            let timestamp = trade.get("sequence_number_for_trade").and_then(|t| t.as_i64()).unwrap_or(0) as u64;
-            
-            serde_json::json!({
-                "time": timestamp,
-                "open": price,
-                "high": price,
-                "low": price,
-                "close": price,
-                "volume": size
+        data_array
+            .iter()
+            .map(|trade| {
+                let price =
+                    trade.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0) / 1_000_000.0; // Convert from micro units
+                let size = trade.get("size").and_then(|s| s.as_f64()).unwrap_or(0.0) / 1_000_000.0; // Convert from micro units
+                let timestamp = trade
+                    .get("sequence_number_for_trade")
+                    .and_then(|t| t.as_i64())
+                    .unwrap_or(0) as u64;
+
+                serde_json::json!({
+                    "time": timestamp,
+                    "open": price,
+                    "high": price,
+                    "low": price,
+                    "close": price,
+                    "volume": size
+                })
             })
-        }).collect::<Vec<_>>()
+            .collect::<Vec<_>>()
     } else {
         vec![]
     };
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::success(chart_data)))
 }
 
@@ -288,7 +366,9 @@ pub async fn get_open_orders(
     let user_address = params
         .get("userAddress")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| AppError::ValidationError("userAddress parameter is required".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError("userAddress parameter is required".to_string())
+        })?;
 
     let market_id = params.get("marketId").and_then(|v| v.as_str());
 
@@ -307,16 +387,19 @@ pub async fn get_order_history(
     let user_address = params
         .get("userAddress")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| AppError::ValidationError("userAddress parameter is required".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError("userAddress parameter is required".to_string())
+        })?;
 
     let market_id = params.get("marketId").and_then(|v| v.as_str());
 
     let kana_client = KanaClient::new()?;
-    let orders = kana_client.get_order_history(user_address, market_id).await?;
+    let orders = kana_client
+        .get_order_history(user_address, market_id)
+        .await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(orders)))
 }
-
 
 // Place limit order
 #[actix_web::get("/place-limit-order")]
@@ -343,19 +426,29 @@ pub async fn place_limit_order(
         .get("size")
         .and_then(|v| v.as_str())
         .and_then(|s| s.parse::<u64>().ok())
-        .ok_or_else(|| AppError::ValidationError("size parameter is required and must be a number".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError("size parameter is required and must be a number".to_string())
+        })?;
 
     let price = params
         .get("price")
         .and_then(|v| v.as_str())
         .and_then(|s| s.parse::<u64>().ok())
-        .ok_or_else(|| AppError::ValidationError("price parameter is required and must be a number".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError(
+                "price parameter is required and must be a number".to_string(),
+            )
+        })?;
 
     let leverage = params
         .get("leverage")
         .and_then(|v| v.as_str())
         .and_then(|s| s.parse::<u64>().ok())
-        .ok_or_else(|| AppError::ValidationError("leverage parameter is required and must be a number".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError(
+                "leverage parameter is required and must be a number".to_string(),
+            )
+        })?;
 
     let kana_client = KanaClient::new()?;
     let result = kana_client
@@ -372,7 +465,9 @@ pub async fn cancel_multiple_orders(
     _pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, AppError> {
     let kana_client = KanaClient::new()?;
-    let result = kana_client.cancel_multiple_orders(order_ids.into_inner()).await?;
+    let result = kana_client
+        .cancel_multiple_orders(order_ids.into_inner())
+        .await?;
 
     Ok(HttpResponse::Ok().json(result))
 }
@@ -391,7 +486,9 @@ pub async fn cancel_and_place_multiple_orders(
                 .map(|v| v.as_str().map(|s| s.to_string()))
                 .collect::<Option<Vec<String>>>()
         })
-        .ok_or_else(|| AppError::ValidationError("cancelOrderIds parameter is required".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError("cancelOrderIds parameter is required".to_string())
+        })?;
 
     let new_orders = request
         .get("newOrders")
@@ -485,10 +582,16 @@ pub async fn add_margin(
         .get("amount")
         .and_then(|v| v.as_str())
         .and_then(|s| s.parse::<u64>().ok())
-        .ok_or_else(|| AppError::ValidationError("amount parameter is required and must be a number".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError(
+                "amount parameter is required and must be a number".to_string(),
+            )
+        })?;
 
     let kana_client = KanaClient::new()?;
-    let result = kana_client.add_margin(market_id, trade_side, amount).await?;
+    let result = kana_client
+        .add_margin(market_id, trade_side, amount)
+        .await?;
 
     Ok(HttpResponse::Ok().json(result))
 }
@@ -519,7 +622,9 @@ pub async fn settle_pnl(
     let user_address = params
         .get("userAddress")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| AppError::ValidationError("userAddress parameter is required".to_string()))?;
+        .ok_or_else(|| {
+            AppError::ValidationError("userAddress parameter is required".to_string())
+        })?;
 
     let market_id = params
         .get("marketId")
