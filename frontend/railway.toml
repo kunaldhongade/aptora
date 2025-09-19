@@ -1,0 +1,19 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+runtime = "V2"
+numReplicas = 1
+sleepApplication = false
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+VITE_API_BASE_URL = "https://aptora-production-d723.up.railway.app/api"
+VITE_BASE_URL = "https://aptora-frontend.up.railway.app"
+VITE_APP_NAME = "Aptora"
+VITE_APP_VERSION = "1.0.0"
+VITE_ENABLE_ANALYTICS = "true"
+VITE_ENABLE_DEBUG_MODE = "false"
+
+# Railway will automatically detect pnpm and use the correct version
