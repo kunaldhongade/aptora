@@ -18,6 +18,14 @@ interface WalletConnectProps {
 }
 
 export const WalletConnect: React.FC<WalletConnectProps> = ({ className }) => {
+    const [walletError, setWalletError] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    // Always call hooks in the same order
+    const { user, setWalletAddress, isAuthenticated } = useAuth();
+
+    // Always call useWallet hook - handle errors in useEffect
     const {
         connect,
         disconnect,
@@ -27,7 +35,23 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({ className }) => {
         network
     } = useWallet();
 
-    const { user, setWalletAddress, isAuthenticated } = useAuth();
+    // Handle wallet errors in useEffect
+    React.useEffect(() => {
+        const handleWalletError = () => {
+            setWalletError(true);
+        };
+
+        // Listen for wallet-related errors
+        window.addEventListener('error', (event) => {
+            if (event.message?.includes('wallet') || event.message?.includes('Hex characters')) {
+                handleWalletError();
+            }
+        });
+
+        return () => {
+            window.removeEventListener('error', handleWalletError);
+        };
+    }, []);
 
     // Log wallet connection status for debugging
     React.useEffect(() => {
@@ -35,6 +59,18 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({ className }) => {
             console.log('Wallet connected:', account);
         }
     }, [connected, account]);
+
+    const getAddressString = React.useCallback(() => {
+        if (!account?.address) return '';
+
+        if (typeof account.address === 'string') {
+            return account.address;
+        } else if (account.address && typeof account.address === 'object' && account.address.toString) {
+            return account.address.toString();
+        } else {
+            return String(account.address);
+        }
+    }, [account]);
 
     // Auto-set wallet address when wallet connects and user is authenticated
     React.useEffect(() => {
@@ -46,10 +82,24 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({ className }) => {
                 });
             }
         }
-    }, [connected, account, isAuthenticated, user, setWalletAddress]);
+    }, [connected, account, isAuthenticated, user, setWalletAddress, getAddressString]);
 
-    const [isOpen, setIsOpen] = useState(false);
-    const [copied, setCopied] = useState(false);
+    // Early return after all hooks are called
+    if (walletError) {
+        return (
+            <div className={`${className}`}>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Wallet}
+                    disabled
+                    className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+                >
+                    <span className="hidden sm:inline">Wallet Unavailable</span>
+                </Button>
+            </div>
+        );
+    }
 
     const handleConnect = async (walletName: string) => {
         try {
@@ -69,17 +119,6 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({ className }) => {
         }
     };
 
-    const getAddressString = () => {
-        if (!account?.address) return '';
-
-        if (typeof account.address === 'string') {
-            return account.address;
-        } else if (account.address && typeof account.address === 'object' && account.address.toString) {
-            return account.address.toString();
-        } else {
-            return String(account.address);
-        }
-    };
 
     const copyAddress = async () => {
         const addressString = getAddressString();
@@ -90,7 +129,7 @@ export const WalletConnect: React.FC<WalletConnectProps> = ({ className }) => {
         }
     };
 
-    const formatAddress = (address: string | undefined | any) => {
+    const formatAddress = (address: string | undefined | unknown) => {
         if (!address) return '';
 
         // Handle different address formats

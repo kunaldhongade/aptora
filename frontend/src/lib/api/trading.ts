@@ -2,6 +2,7 @@ import type {
   MarketResponse,
   OrderbookResponse,
   OrderResponse,
+  PlaceOrderRequest,
   PositionResponse,
 } from "../api";
 import { apiClient } from "../api";
@@ -13,7 +14,7 @@ export const tradingApi = {
   getOrderbook: (symbol: string) => apiClient.getOrderbook(symbol),
   getOrders: () => apiClient.getOrders(),
   getPositions: () => apiClient.getPositions(),
-  placeOrder: (orderData: any) => apiClient.placeOrder(orderData),
+  placeOrder: (orderData: PlaceOrderRequest) => apiClient.placeOrder(orderData),
   cancelOrder: (orderId: string) => apiClient.cancelOrder(orderId),
 };
 

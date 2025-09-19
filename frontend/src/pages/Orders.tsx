@@ -1,6 +1,6 @@
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, DollarSign, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { Clock, TrendingDown, TrendingUp, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { CardLoading } from '../components/ui/LoadingAnimation';
@@ -49,9 +49,9 @@ export const Orders: React.FC = () => {
         if (user) {
             loadData();
         }
-    }, [user, activeTab]);
+    }, [user, activeTab, loadData]);
 
-    const loadData = async () => {
+    const loadData = React.useCallback(async () => {
         setIsLoading(true);
         setError(null);
 
@@ -74,7 +74,7 @@ export const Orders: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user, activeTab]);
 
     const handleCancelOrder = async (orderId: string) => {
         try {

@@ -1,9 +1,8 @@
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
-import { Award, Crown, Filter, Search, TrendingUp, Users } from 'lucide-react';
+import { Crown, Search, TrendingUp, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
-import { TraderCard } from '../components/ui/Card';
 import { apiClient, ReferralLeaderboardEntry } from '../lib/api';
 
 export const Leaderboard: React.FC = () => {

@@ -36,7 +36,7 @@ export const RegisterForm: React.FC = () => {
                     setUsernameStatus('taken');
                     setUsernameMessage('Username is already taken ❌');
                 }
-            } catch (error) {
+            } catch {
                 setUsernameStatus('idle');
                 setUsernameMessage('Error checking username');
             }

@@ -41,9 +41,9 @@ export const Profile: React.FC = () => {
         if (user) {
             loadProfileData();
         }
-    }, [user]);
+    }, [user, loadProfileData]);
 
-    const loadProfileData = async () => {
+    const loadProfileData = React.useCallback(async () => {
         if (!user?.username) return;
 
         setIsLoading(true);
@@ -68,7 +68,7 @@ export const Profile: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user]);
 
     const handleSaveProfile = async () => {
         if (!user) return;
