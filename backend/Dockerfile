@@ -15,8 +15,8 @@ WORKDIR /app
 # Install cargo-watch for hot reload
 RUN cargo install cargo-watch
 
-# Copy Cargo files
-COPY Cargo.toml ./
+# Copy Cargo files from backend directory
+COPY backend/Cargo.toml ./
 
 # Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
@@ -24,8 +24,8 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 # Build dependencies (this layer will be cached)
 RUN cargo build --release && rm -rf src
 
-# Copy source code
-COPY . .
+# Copy source code from backend directory
+COPY backend/ .
 
 # Expose port
 EXPOSE 8081
