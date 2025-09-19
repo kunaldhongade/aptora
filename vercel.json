@@ -3,7 +3,6 @@
     "outputDirectory": "frontend/dist",
     "framework": "vite",
     "installCommand": "echo 'Dependencies will be installed by build script'",
-    "nodeVersion": "18.x",
     "rewrites": [
         {
             "source": "/api/(.*)",
