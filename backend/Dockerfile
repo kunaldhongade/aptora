@@ -31,7 +31,7 @@ COPY backend/ .
 EXPOSE 8081
 
 # Install Diesel CLI for migrations
-RUN cargo install diesel_cli --version 2.1.1 --no-default-features --features postgres
+RUN cargo install diesel_cli --version 2.1.0 --no-default-features --features postgres
 
 # Build the application in release mode for production
 RUN cargo build --release
