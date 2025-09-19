@@ -27,6 +27,9 @@ RUN cargo build --release && rm -rf src
 # Copy source code from backend directory
 COPY backend/ .
 
+# Ensure diesel.toml is present for migrations
+COPY backend/diesel.toml ./
+
 # Expose port
 EXPOSE 8081
 
@@ -36,5 +39,5 @@ RUN cargo install diesel_cli --version 2.1.0 --no-default-features --features po
 # Build the application in release mode for production
 RUN cargo build --release
 
-# Production startup command with migrations
-CMD ["sh", "-c", "echo '🚀 Starting Aptora Backend...' && diesel migration run && echo '✅ Starting server...' && ./target/release/aptora-backend"]
+# Production startup command with migrations and better error handling
+CMD ["sh", "-c", "echo '🚀 Starting Aptora Backend...' && echo 'DATABASE_URL: $DATABASE_URL' && echo '🔄 Running database migrations...' && diesel migration run --verbose || (echo '❌ Migration failed!' && exit 1) && echo '✅ Migrations completed!' && echo '🚀 Starting server on 0.0.0.0:8081...' && ./target/release/aptora-backend"]
