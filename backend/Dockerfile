@@ -30,5 +30,11 @@ COPY . .
 # Expose port
 EXPOSE 8081
 
-# Default command (will be overridden by docker-compose)
-CMD ["cargo", "run"]
+# Install Diesel CLI for migrations
+RUN cargo install diesel_cli --version 2.1.1 --no-default-features --features postgres
+
+# Build the application in release mode for production
+RUN cargo build --release
+
+# Production startup command with migrations
+CMD ["sh", "-c", "echo '🚀 Starting Aptora Backend...' && diesel migration run && echo '✅ Starting server...' && ./target/release/aptora-backend"]

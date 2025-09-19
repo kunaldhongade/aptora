@@ -3,7 +3,7 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "./aptora-backend"
+startCommand = "sh -c 'echo Starting Aptora Backend... && diesel migration run && echo Starting server... && ./target/release/aptora-backend'"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"

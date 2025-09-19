@@ -3,25 +3,36 @@
 echo "🚀 Starting Aptora Trading Platform"
 echo "==================================="
 
-# Check if .env exists
-if [ ! -f .env ]; then
-    echo "❌ .env file not found!"
-    echo "Please run: ./setup-env.sh"
+# Check if .env exists (only for local development)
+if [ ! -f .env ] && [ -z "$DATABASE_URL" ]; then
+    echo "❌ .env file not found and no environment variables set!"
+    echo "For local development, please run: ./setup-env.sh"
+    echo "For production deployment, ensure environment variables are set in your platform."
     exit 1
 fi
 
-# Check if DATABASE_URL is set
-if grep -q "your-neon-host" .env; then
-    echo "⚠️  Warning: DATABASE_URL not configured in .env file"
-    echo "Please edit .env file and add your Neon database URL"
-    echo ""
+# Skip .env checks if we're in production (environment variables are set by platform)
+if [ -n "$DATABASE_URL" ]; then
+    echo "✅ Production environment detected - using platform environment variables"
+else
+    echo "✅ Local development environment detected - using .env file"
 fi
 
-# Check if KANA_API_KEY is set
-if grep -q "your-kana-labs-api-key-here" .env; then
-    echo "⚠️  Warning: KANA_API_KEY not configured in .env file"
-    echo "Please edit .env file and add your Kana Labs API key"
-    echo ""
+# Only check .env file contents if we're in local development
+if [ -f .env ] && [ -z "$DATABASE_URL" ]; then
+    # Check if DATABASE_URL is set in .env
+    if grep -q "your-neon-host" .env; then
+        echo "⚠️  Warning: DATABASE_URL not configured in .env file"
+        echo "Please edit .env file and add your Neon database URL"
+        echo ""
+    fi
+
+    # Check if KANA_API_KEY is set in .env
+    if grep -q "your-kana-labs-api-key-here" .env; then
+        echo "⚠️  Warning: KANA_API_KEY not configured in .env file"
+        echo "Please edit .env file and add your Kana Labs API key"
+        echo ""
+    fi
 fi
 
 echo "📦 Starting backend service..."
