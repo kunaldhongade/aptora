@@ -3,33 +3,32 @@ set -e
 
 echo "🚀 Building Aptora Frontend for Vercel..."
 
-# Check if we're on Vercel and try to upgrade pnpm
-if [ -n "$VERCEL" ]; then
-    echo "🔧 Detected Vercel environment"
-    echo "📋 Current PNPM version: $(pnpm --version)"
-    
-    # Try to upgrade pnpm, but don't fail if it doesn't work
-    echo "🔄 Attempting to upgrade pnpm..."
-    npm install -g pnpm@8 || echo "⚠️ Could not upgrade pnpm, using existing version"
-    echo "📋 Final PNPM version: $(pnpm --version)"
-fi
-
-# Navigate to frontend directory
+# Navigate to frontend directory first
 cd frontend
 
-# Install dependencies using pnpm with retry logic
-echo "📦 Installing dependencies with pnpm..."
-pnpm install || {
-    echo "⚠️ PNPM install failed, trying with different registry..."
-    pnpm install --registry https://registry.npmjs.org/ || {
-        echo "❌ PNPM install failed completely"
-        exit 1
-    }
-}
-
-# Build the application
-echo "🔨 Building application..."
-pnpm build
+# Check if we're on Vercel
+if [ -n "$VERCEL" ]; then
+    echo "🔧 Detected Vercel environment - bypassing broken pnpm"
+    
+    # Vercel's pnpm 6.35.1 is broken, so we'll use npm but keep exact versions
+    echo "📦 Using npm with exact dependency versions from pnpm-lock.yaml..."
+    
+    # Remove any existing node_modules to start fresh
+    rm -rf node_modules package-lock.json
+    
+    # Use npm with legacy peer deps to handle Aptos SDK conflicts
+    npm install --legacy-peer-deps
+    
+    echo "🔨 Building with npm..."
+    npm run build
+else
+    # Local development - use normal pnpm
+    echo "📦 Installing dependencies with pnpm (local development)..."
+    pnpm install
+    
+    echo "🔨 Building with pnpm..."
+    pnpm build
+fi
 
 echo "✅ Frontend build complete!"
 echo "📁 Output directory: frontend/dist"
