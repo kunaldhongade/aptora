@@ -1,5 +1,5 @@
 {
-    "buildCommand": "pnpm install --ignore-scripts && pnpm build --config vite.config.simple.ts",
+    "buildCommand": "pnpm install --ignore-scripts && pnpm build",
     "outputDirectory": "dist",
     "framework": "vite",
     "rewrites": [
