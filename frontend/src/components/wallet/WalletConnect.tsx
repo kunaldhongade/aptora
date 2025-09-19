@@ -1,5 +1,3 @@
-import { WalletReadyState } from '@aptos-labs/wallet-adapter-core';
-import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
     Check,
@@ -11,6 +9,7 @@ import {
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWallet } from '../../contexts/SimpleWalletProvider';
 import { Button } from '../ui/Button';
 
 interface WalletConnectProps {

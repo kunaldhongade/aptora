@@ -4,7 +4,7 @@ import { BottomNav } from './components/layout/BottomNav';
 import { Header } from './components/layout/Header';
 import { PageLoading } from './components/ui/LoadingAnimation';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SmartWalletProvider } from './contexts/SmartWalletProvider';
+import { SimpleWalletProvider } from './contexts/SimpleWalletProvider';
 import './styles/globals.css';
 import { LazyWrapper } from './utils/lazyLoad';
 
@@ -185,7 +185,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <SmartWalletProvider>
+        <SimpleWalletProvider>
           <AuthProvider>
             <Routes>
               {/* Public Routes */}
@@ -211,7 +211,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AuthProvider>
-        </SmartWalletProvider>
+        </SimpleWalletProvider>
       </Router>
     </ErrorBoundary>
   );
