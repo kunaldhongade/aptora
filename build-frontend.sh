@@ -6,8 +6,8 @@ echo "🚀 Building Aptora Frontend for Vercel..."
 # Navigate to frontend directory
 cd frontend
 
-# Install dependencies
-echo "📦 Installing dependencies..."
+# Install dependencies using pnpm
+echo "📦 Installing dependencies with pnpm..."
 pnpm install
 
 # Build the application
