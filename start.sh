@@ -42,7 +42,7 @@ echo "🌐 Access your platform:"
 echo "   Backend:  http://localhost:8081/api/health"
 echo ""
 echo "🚀 To start the frontend (run in a separate terminal):"
-echo "   cd frontend && npm install && npm run dev"
+echo "   cd frontend && pnpm install && pnpm run dev"
 echo "   Frontend will be available at: http://localhost:5173"
 echo ""
 echo "📊 View logs: docker compose logs -f"
@@ -71,8 +71,8 @@ cd frontend
 
 # Install dependencies if node_modules doesn't exist
 if [ ! -d "node_modules" ]; then
-    echo "Installing npm dependencies..."
-    npm install
+    echo "Installing pnpm dependencies..."
+    pnpm install
 else
     echo "Dependencies already installed."
 fi
@@ -86,4 +86,4 @@ echo "Press Ctrl+C to stop the frontend server"
 echo ""
 
 # Start the development server
-npm run dev
+pnpm run dev

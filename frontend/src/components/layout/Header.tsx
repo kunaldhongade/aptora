@@ -29,7 +29,6 @@ interface HeaderProps {
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'trade', label: 'Trade', icon: Zap },
-  { id: 'markets', label: 'Markets', icon: TrendingUp },
   { id: 'orders', label: 'Orders', icon: FileText },
   { id: 'social', label: 'Social', icon: Users },
   { id: 'referrals', label: 'Referrals', icon: Gift },
@@ -46,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
   return (
     <>
       <header className="bg-surface-700 border-b border-surface-600">
-        <div className="px-4 py-3 max-w-screen-xl mx-auto">
+        <div className="px-4 py-3 w-full">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <button

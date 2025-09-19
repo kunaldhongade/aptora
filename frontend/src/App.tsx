@@ -12,7 +12,6 @@ import { LazyWrapper } from './utils/lazyLoad';
 const Auth = React.lazy(() => import('./pages/Auth').then(m => ({ default: m.Auth })));
 const Dashboard = React.lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Leaderboard = React.lazy(() => import('./pages/Leaderboard').then(m => ({ default: m.Leaderboard })));
-const Markets = React.lazy(() => import('./pages/Markets').then(m => ({ default: m.Markets })));
 const Orders = React.lazy(() => import('./pages/Orders').then(m => ({ default: m.Orders })));
 const Profile = React.lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
 const Referrals = React.lazy(() => import('./pages/Referrals').then(m => ({ default: m.Referrals })));
@@ -52,10 +51,10 @@ const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 // Main App Layout Component
 const AppLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'trade' | 'markets' | 'orders' | 'vaults' | 'referrals' | 'leaderboard' | 'social' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'trade' | 'orders' | 'vaults' | 'referrals' | 'leaderboard' | 'social' | 'profile'>('dashboard');
 
   const handleNavigate = (page: string) => {
-    if (page === 'dashboard' || page === 'trade' || page === 'markets' || page === 'orders' || page === 'vaults' || page === 'referrals' || page === 'leaderboard' || page === 'social' || page === 'profile') {
+    if (page === 'dashboard' || page === 'trade' || page === 'orders' || page === 'vaults' || page === 'referrals' || page === 'leaderboard' || page === 'social' || page === 'profile') {
       setActiveTab(page);
     }
   };
@@ -72,12 +71,6 @@ const AppLayout: React.FC = () => {
         return (
           <LazyWrapper>
             <Trade />
-          </LazyWrapper>
-        );
-      case 'markets':
-        return (
-          <LazyWrapper>
-            <Markets />
           </LazyWrapper>
         );
       case 'orders':
@@ -126,9 +119,9 @@ const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white overflow-x-hidden">
+    <div className="min-h-screen bg-bg-900 text-text-default overflow-x-hidden flex flex-col">
       <Header currentPage={activeTab} onNavigate={handleNavigate} />
-      <main className="px-5 py-3 max-w-screen-xl mx-auto">
+      <main className="px-5 py-3 w-full flex-1 flex flex-col">
         {renderContent()}
       </main>
       <BottomNav currentPage={activeTab} onNavigate={handleNavigate} />
@@ -155,7 +148,6 @@ function App() {
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
             <Route path="/trade" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/markets" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
             <Route path="/vaults" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
             <Route path="/referrals" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />

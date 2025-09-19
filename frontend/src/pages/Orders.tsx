@@ -152,7 +152,7 @@ export const Orders: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
                                 <div>
                                     <p className="text-muted">Size</p>
                                     <p className="font-mono">{order.quantity}</p>
@@ -220,7 +220,7 @@ export const Orders: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
                                 <div>
                                     <p className="text-muted">Size</p>
                                     <p className="font-mono">{position.size}</p>
@@ -246,7 +246,7 @@ export const Orders: React.FC = () => {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="w-full max-w-none space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-text-default mb-2">Orders & Positions</h1>
                 <p className="text-muted">Manage your trading orders and view open positions.</p>
@@ -259,7 +259,7 @@ export const Orders: React.FC = () => {
                     className={clsx(
                         'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
                         activeTab === 'orders'
-                            ? 'bg-primary text-black'
+                            ? 'bg-primary text-black shadow-glow'
                             : 'text-muted hover:text-text-default'
                     )}
                 >
@@ -270,7 +270,7 @@ export const Orders: React.FC = () => {
                     className={clsx(
                         'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
                         activeTab === 'positions'
-                            ? 'bg-primary text-black'
+                            ? 'bg-primary text-black shadow-glow'
                             : 'text-muted hover:text-text-default'
                     )}
                 >

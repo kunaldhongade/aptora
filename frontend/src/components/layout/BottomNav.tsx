@@ -9,10 +9,10 @@ interface BottomNavProps {
 
 const bottomNavItems = [
   { id: 'dashboard', label: 'Home', icon: Home },
+  { id: 'trade', label: 'Trade', icon: TrendingUp },
   { id: 'orders', label: 'Orders', icon: FileText },
   { id: 'social', label: 'Social', icon: Users },
   { id: 'referrals', label: 'Refs', icon: User },
-  { id: 'trade', label: 'Trade', icon: TrendingUp },
 ];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {

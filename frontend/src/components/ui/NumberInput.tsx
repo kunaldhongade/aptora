@@ -1,6 +1,6 @@
-import React from 'react';
 import { clsx } from 'clsx';
 import { Minus, Plus } from 'lucide-react';
+import React from 'react';
 import { Button } from './Button';
 
 interface NumberInputProps {
@@ -14,6 +14,7 @@ interface NumberInputProps {
   className?: string;
   disabled?: boolean;
   showMaxButton?: boolean;
+  errorMessage?: string;
 }
 
 export const NumberInput: React.FC<NumberInputProps> = ({
@@ -27,6 +28,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   className,
   disabled = false,
   showMaxButton = false,
+  errorMessage,
 }) => {
   const handleIncrement = () => {
     const newValue = Math.min((value || 0) + step, max);
@@ -64,7 +66,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         >
           <Minus className="w-4 h-4" />
         </button>
-        
+
         <input
           type="number"
           value={value}
@@ -81,7 +83,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
             disabled && 'opacity-50 cursor-not-allowed'
           )}
         />
-        
+
         <button
           type="button"
           onClick={handleIncrement}
@@ -90,7 +92,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         >
           <Plus className="w-4 h-4" />
         </button>
-        
+
         {showMaxButton && (
           <Button
             variant="ghost"
@@ -102,6 +104,13 @@ export const NumberInput: React.FC<NumberInputProps> = ({
           </Button>
         )}
       </div>
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="text-xs text-red-400 mt-1">
+          {errorMessage}
+        </div>
+      )}
     </div>
   );
 };
