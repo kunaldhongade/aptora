@@ -3,8 +3,8 @@ import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-d
 import { BottomNav } from './components/layout/BottomNav';
 import { Header } from './components/layout/Header';
 import { PageLoading } from './components/ui/LoadingAnimation';
-import { AptosWalletProvider } from './contexts/AptosWalletProvider';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SmartWalletProvider } from './contexts/SmartWalletProvider';
 import './styles/globals.css';
 import { LazyWrapper } from './utils/lazyLoad';
 
@@ -185,7 +185,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <AptosWalletProvider>
+        <SmartWalletProvider>
           <AuthProvider>
             <Routes>
               {/* Public Routes */}
@@ -211,7 +211,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AuthProvider>
-        </AptosWalletProvider>
+        </SmartWalletProvider>
       </Router>
     </ErrorBoundary>
   );

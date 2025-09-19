@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const userProfile = await apiClient.getProfile();
             setUser(userProfile);
             console.log('User authenticated successfully');
-          } catch (error) {
+          } catch {
             console.log('Profile fetch failed, attempting token refresh...');
             // If getting profile fails, try to refresh token
             try {
@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initializeAuth();
-  }, []);
+  }, [refreshAccessToken]);
 
   // Set up automatic token refresh with retry logic
   useEffect(() => {
@@ -139,7 +139,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const refreshInterval = setInterval(attemptRefresh, 14 * 60 * 1000); // Refresh every 14 minutes
 
     return () => clearInterval(refreshInterval);
-  }, [accessToken, refreshToken]);
+  }, [accessToken, refreshToken, logout, refreshAccessToken]);
 
   const clearAuthData = () => {
     setUser(null);
@@ -183,7 +183,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = React.useCallback(async () => {
     try {
       if (refreshToken) {
         await apiClient.logout(refreshToken);
@@ -193,9 +193,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       clearAuthData();
     }
-  };
+  }, [refreshToken]);
 
-  const refreshAccessToken = async () => {
+  const refreshAccessToken = React.useCallback(async () => {
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -220,7 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       throw error;
     }
-  };
+  }, [refreshToken]);
 
   const updateUser = (userData: Partial<User>) => {
     if (user) {

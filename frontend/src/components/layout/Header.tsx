@@ -11,7 +11,6 @@ import {
   User,
   Users,
   Vault,
-  Wallet,
   X,
   Zap
 } from 'lucide-react';

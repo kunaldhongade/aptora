@@ -1,6 +1,6 @@
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
-import { Copy, Gift, Share2, TrendingUp, Trophy, Users } from 'lucide-react';
+import { Copy, Gift, Share2, Trophy, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +9,7 @@ import { apiClient, ReferralLeaderboardEntry } from '../lib/api';
 export const Referrals: React.FC = () => {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setIsLoading] = useState(false);
   const [referralStats, setReferralStats] = useState({
     totalReferred: 0,
     totalEarned: 0,
@@ -17,28 +17,33 @@ export const Referrals: React.FC = () => {
     nextTier: 'Bronze',
     progressToNext: 0,
   });
-  const [recentReferrals, setRecentReferrals] = useState<any[]>([]);
-  const [leaderboard, setLeaderboard] = useState<ReferralLeaderboardEntry[]>([]);
+  const [recentReferrals, setRecentReferrals] = useState<{
+    handle: string;
+    date: string;
+    commission: number;
+    status: string;
+  }[]>([]);
+  const [, setLeaderboard] = useState<ReferralLeaderboardEntry[]>([]);
   const [referralCode, setReferralCode] = useState<string>('');
 
   const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:5173';
   const referralLink = referralCode ? `${baseUrl}/ref/${referralCode}` : '';
 
-  const tiers = [
-    { name: 'Starter', commission: '10%', requirement: '0 referrals', current: false },
-    { name: 'Bronze', commission: '15%', requirement: '5 referrals', current: false },
-    { name: 'Silver', commission: '20%', requirement: '15 referrals', current: false },
-    { name: 'Gold', commission: '25%', requirement: '30 referrals', current: false },
-    { name: 'Platinum', commission: '30%', requirement: '50 referrals', current: false },
-  ];
+  const tiers = React.useMemo(() => [
+    { name: 'Starter', commission: '10%', requirement: '0 referrals', current: referralStats.currentTier === 'Starter' },
+    { name: 'Bronze', commission: '15%', requirement: '5 referrals', current: referralStats.currentTier === 'Bronze' },
+    { name: 'Silver', commission: '20%', requirement: '15 referrals', current: referralStats.currentTier === 'Silver' },
+    { name: 'Gold', commission: '25%', requirement: '30 referrals', current: referralStats.currentTier === 'Gold' },
+    { name: 'Platinum', commission: '30%', requirement: '50 referrals', current: referralStats.currentTier === 'Platinum' },
+  ], [referralStats.currentTier]);
 
   useEffect(() => {
     if (user?.username) {
       loadReferralData();
     }
-  }, [user]);
+  }, [user, loadReferralData]);
 
-  const loadReferralData = async () => {
+  const loadReferralData = React.useCallback(async () => {
     if (!user?.username) return;
 
     setIsLoading(true);
@@ -92,10 +97,7 @@ export const Referrals: React.FC = () => {
         progressToNext: Math.min(progressToNext, 100)
       });
 
-      // Update tiers with current status
-      tiers.forEach(tier => {
-        tier.current = tier.name === currentTier;
-      });
+      // Tiers are now updated automatically via useMemo
 
       setLeaderboard(leaderboardData);
 
@@ -114,7 +116,7 @@ export const Referrals: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(referralLink);

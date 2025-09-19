@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { FileText, Home, TrendingUp, User, Users, Vault } from 'lucide-react';
+import { FileText, Home, TrendingUp, User, Users } from 'lucide-react';
 import React from 'react';
 
 interface BottomNavProps {

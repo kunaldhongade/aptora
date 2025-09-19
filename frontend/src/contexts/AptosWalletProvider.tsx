@@ -13,20 +13,65 @@ interface AptosWalletProviderProps {
 }
 
 export const AptosWalletProvider: React.FC<AptosWalletProviderProps> = ({ children }) => {
-    // Configure the wallets you want to support
-    const wallets = [
-        new PetraWallet(),
-        new PontemWallet(),
-        new MartianWallet(),
-        new FewchaWallet(),
-    ];
+    // Configure the wallets you want to support with error handling
+    const wallets = React.useMemo(() => {
+        try {
+            return [
+                new PetraWallet(),
+                new PontemWallet(),
+                new MartianWallet(),
+                new FewchaWallet(),
+            ];
+        } catch (error) {
+            console.error('Error initializing wallets:', error);
+            return [];
+        }
+    }, []);
+
+    const handleError = React.useCallback((error: Error) => {
+        console.error('Aptos Wallet Error:', error);
+        // Don't throw the error in production, just log it
+        if (import.meta.env.DEV) {
+            console.warn('Wallet error in development mode');
+        }
+    }, []);
+
+    // Add error boundary for wallet provider
+    const [hasWalletError, setHasWalletError] = React.useState(false);
+
+    React.useEffect(() => {
+        const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+            if (event.reason?.message?.includes('Hex characters are invalid') ||
+                event.reason?.message?.includes('Cannot access') ||
+                event.reason?.message?.includes('hd')) {
+                console.warn('Wallet initialization error caught:', event.reason);
+                setHasWalletError(true);
+                event.preventDefault(); // Prevent the error from crashing the app
+            }
+        };
+
+        window.addEventListener('unhandledrejection', handleUnhandledRejection);
+        return () => {
+            window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+        };
+    }, []);
+
+    // If wallet has error, render children without wallet provider
+    if (hasWalletError) {
+        console.warn('Rendering app without wallet functionality due to initialization error');
+        return <>{children}</>;
+    }
 
     return (
         <AptosWalletAdapterProvider
             plugins={wallets}
-            autoConnect={true}
-            onError={(error) => {
-                console.error('Aptos Wallet Error:', error);
+            autoConnect={false} // Disable auto-connect to prevent initialization errors
+            onError={handleError}
+            dappConfig={{
+                network: Network.TESTNET, // Explicitly set network
+                mizuwallet: {
+                    manifestURL: "https://assets.mizuwallet.com/dapp-config.json",
+                },
             }}
         >
             {children}

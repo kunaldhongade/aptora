@@ -62,12 +62,12 @@ export const Social: React.FC = () => {
                     id: userProfile.id,
                     username: userProfile.username,
                     email: userProfile.email,
-                    bio: (userProfile as any).bio || 'New trader on Aptora',
-                    avatar_url: (userProfile as any).avatar_url,
-                    is_verified: (userProfile as any).is_verified || false,
-                    referral_count: (userProfile as any).referral_count || 0,
-                    total_rewards: (userProfile as any).total_rewards || 0,
-                    last_active: (userProfile as any).last_active
+                    bio: (userProfile as Record<string, unknown>).bio as string || 'New trader on Aptora',
+                    avatar_url: (userProfile as Record<string, unknown>).avatar_url as string,
+                    is_verified: (userProfile as Record<string, unknown>).is_verified as boolean || false,
+                    referral_count: (userProfile as Record<string, unknown>).referral_count as number || 0,
+                    total_rewards: (userProfile as Record<string, unknown>).total_rewards as number || 0,
+                    last_active: (userProfile as Record<string, unknown>).last_active as string
                 }));
             setUsers(discoverUsers);
         } catch (error) {
@@ -286,7 +286,7 @@ export const Social: React.FC = () => {
                 ].map((tab) => (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => setActiveTab(tab.id as 'discover' | 'following' | 'leaderboard')}
                         className={clsx(
                             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                             activeTab === tab.id

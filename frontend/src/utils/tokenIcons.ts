@@ -72,8 +72,8 @@ export const TOKEN_ICONS: Record<string, TokenInfo> = {
 // Function to get token info with fallback
 export const getTokenInfo = (symbol: string): TokenInfo => {
   const cleanSymbol = symbol
-    .replace(/[-\/]/g, "")
-    .split(/[-\/]/)[0]
+    .replace(/[-/]/g, "")
+    .split(/[-/]/)[0]
     .toUpperCase();
 
   return (
@@ -89,5 +89,5 @@ export const getTokenInfo = (symbol: string): TokenInfo => {
 // Function to extract base symbol from trading pairs
 export const getBaseSymbol = (symbol: string): string => {
   // Handle formats like "APT-USDC", "BTC/USDT", "ETH-USD"
-  return symbol.split(/[-\/]/)[0].toUpperCase();
+  return symbol.split(/[-/]/)[0].toUpperCase();
 };
