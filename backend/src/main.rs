@@ -9,12 +9,12 @@ use std::env;
 mod auth;
 mod db;
 mod handlers;
+mod kana_client;
 mod middleware;
 mod models;
 mod schema;
-mod utils;
-mod kana_client;
 mod social;
+mod utils;
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -24,13 +24,25 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string()); // Default to 0.0.0.0 for Railway
     let port = env::var("PORT").unwrap_or_else(|_| "8081".to_string());
     let bind_address = format!("{}:{}", host, port);
 
-    // Create database connection pool
+    info!("Binding to: {}", bind_address);
+    info!(
+        "Database URL configured: {}",
+        if database_url.is_empty() { "No" } else { "Yes" }
+    );
+
+    // Create database connection pool with better configuration
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     let pool = r2d2::Pool::builder()
+        .max_size(10) // Maximum number of connections in the pool
+        .min_idle(Some(1)) // Minimum idle connections
+        .connection_timeout(std::time::Duration::from_secs(30))
+        .idle_timeout(Some(std::time::Duration::from_secs(600))) // 10 minutes
+        .max_lifetime(Some(std::time::Duration::from_secs(1800))) // 30 minutes
+        .test_on_check_out(true) // Test connections before use
         .build(manager)
         .expect("Failed to create pool");
 
@@ -63,10 +75,7 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::auth::refresh)
                             .service(handlers::auth::logout)
                             .service(handlers::auth::check_username)
-                            .service(
-                                web::resource("/me")
-                                    .route(web::get().to(handlers::auth::me))
-                            )
+                            .service(web::resource("/me").route(web::get().to(handlers::auth::me))),
                     )
                     .service(
                         web::scope("/trading")
@@ -89,7 +98,7 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::trading::get_last_placed_price)
                             .service(handlers::trading::add_margin)
                             .service(handlers::trading::collapse_position)
-                            .service(handlers::trading::settle_pnl)
+                            .service(handlers::trading::settle_pnl),
                     )
                     .service(
                         web::scope("/wallet")
@@ -97,29 +106,29 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::wallet::get_wallet_account_balance)
                             .service(handlers::wallet::get_profile_balance_snapshot)
                             .service(handlers::wallet::create_deposit_payload)
-                            .service(handlers::wallet::create_withdraw_specific_market_payload)
+                            .service(handlers::wallet::create_withdraw_specific_market_payload),
                     )
-                                         .service(
-                         web::scope("/user")
-                             .service(handlers::user::get_profile)
-                             .service(handlers::user::update_profile)
-                             .service(handlers::user::get_balance)
-                     )
-                     .service(
-                         web::scope("/social")
-                             .service(handlers::social::follow_user)
-                             .service(handlers::social::unfollow_user)
-                             .service(handlers::social::get_followers)
-                             .service(handlers::social::get_following)
-                             .service(handlers::social::get_follow_stats)
-                             .service(handlers::social::get_public_profile)
-                             .service(handlers::social::update_profile)
-                                                         .service(handlers::social::get_referral_leaderboard)
+                    .service(
+                        web::scope("/user")
+                            .service(handlers::user::get_profile)
+                            .service(handlers::user::update_profile)
+                            .service(handlers::user::get_balance),
+                    )
+                    .service(
+                        web::scope("/social")
+                            .service(handlers::social::follow_user)
+                            .service(handlers::social::unfollow_user)
+                            .service(handlers::social::get_followers)
+                            .service(handlers::social::get_following)
+                            .service(handlers::social::get_follow_stats)
+                            .service(handlers::social::get_public_profile)
+                            .service(handlers::social::update_profile)
+                            .service(handlers::social::get_referral_leaderboard)
                             .service(handlers::social::get_referral_info)
                             .service(handlers::social::get_referred_users)
                             .service(handlers::social::check_following_status)
-                            .service(handlers::social::get_all_users)
-                     )
+                            .service(handlers::social::get_all_users),
+                    ),
             )
     })
     .bind(&bind_address)?
