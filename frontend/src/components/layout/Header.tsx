@@ -18,7 +18,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 import { Logo } from '../ui/Logo';
-import { WalletConnect } from '../wallet/WalletConnect';
+import { WalletConnect } from '../wallet/SimpleWalletConnect';
 
 interface HeaderProps {
   currentPage: string;
