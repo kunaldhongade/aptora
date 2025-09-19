@@ -1,7 +1,7 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
-dockerContext = "."
+dockerfilePath = "backend/Dockerfile"
+dockerContext = "backend"
 
 [deploy]
 runtime = "V2"
@@ -16,4 +16,3 @@ healthcheckTimeout = 100
 [env]
 HOST = "0.0.0.0"
 RUST_LOG = "info"
-
