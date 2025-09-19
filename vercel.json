@@ -1,8 +1,9 @@
 {
-    "buildCommand": "cd frontend && pnpm build",
+    "buildCommand": "./build-frontend.sh",
     "outputDirectory": "frontend/dist",
     "framework": "vite",
-    "installCommand": "cd frontend && pnpm install",
+    "installCommand": "echo 'Dependencies will be installed by build script'",
+    "nodeVersion": "18.x",
     "rewrites": [
         {
             "source": "/api/(.*)",

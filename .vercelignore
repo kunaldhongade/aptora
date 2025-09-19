@@ -1,0 +1,45 @@
+# Backend files (not needed for frontend deployment)
+backend/
+contract/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.eslintcache
+.vscode/
+.DS_Store
+
+# Build artifacts we don't need
+**/node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Frontend source files (only dist is needed for deployment)
+frontend/src/
+frontend/public/
+frontend/index.html
+frontend/tsconfig.json
+frontend/tsconfig.*.json
+frontend/vite.config.ts
+frontend/tailwind.config.js
+frontend/postcss.config.js
+frontend/eslint.config.js
+
+# Test files
+**/*.test.*
+**/*.spec.*
+coverage/
+
+# Documentation
+README.md
+*.md
+
+# Scripts and config files
+start.sh
+setup-env.sh
+run_tests.sh
