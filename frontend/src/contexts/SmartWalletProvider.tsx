@@ -22,9 +22,12 @@ export const SmartWalletProvider: React.FC<SmartWalletProviderProps> = ({ childr
                 event.reason?.message?.includes('hd') ||
                 event.reason?.message?.includes('wallet')) {
                 console.warn('Wallet initialization failed, switching to fallback mode');
-                setUseWallet(false);
-                setHasInitialized(true);
                 event.preventDefault();
+                // Use setTimeout to avoid setState during render
+                setTimeout(() => {
+                    setUseWallet(false);
+                    setHasInitialized(true);
+                }, 0);
             }
         };
 
@@ -33,9 +36,12 @@ export const SmartWalletProvider: React.FC<SmartWalletProviderProps> = ({ childr
                 event.message?.includes('Cannot access') ||
                 event.message?.includes('hd')) {
                 console.warn('Wallet error detected, switching to fallback mode');
-                setUseWallet(false);
-                setHasInitialized(true);
                 event.preventDefault();
+                // Use setTimeout to avoid setState during render
+                setTimeout(() => {
+                    setUseWallet(false);
+                    setHasInitialized(true);
+                }, 0);
             }
         };
 

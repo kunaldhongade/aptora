@@ -37,12 +37,6 @@ export const Referrals: React.FC = () => {
     { name: 'Platinum', commission: '30%', requirement: '50 referrals', current: referralStats.currentTier === 'Platinum' },
   ], [referralStats.currentTier]);
 
-  useEffect(() => {
-    if (user?.username) {
-      loadReferralData();
-    }
-  }, [user, loadReferralData]);
-
   const loadReferralData = React.useCallback(async () => {
     if (!user?.username) return;
 
@@ -117,6 +111,12 @@ export const Referrals: React.FC = () => {
       setIsLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user?.username) {
+      loadReferralData();
+    }
+  }, [user, loadReferralData]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(referralLink);
