@@ -14,14 +14,43 @@ export const SmartWalletProvider: React.FC<SmartWalletProviderProps> = ({ childr
     const [useWallet, setUseWallet] = useState(true);
     const [hasInitialized, setHasInitialized] = useState(false);
 
+    // Immediately catch any errors during component initialization
+    React.useLayoutEffect(() => {
+        const checkForWalletErrors = () => {
+            try {
+                // Try to access some common wallet-related globals that might cause issues
+                if (typeof window !== 'undefined') {
+                    // This is just a probe - if wallet libraries are broken, this might catch it
+                    const hasWalletError = window.location.href.includes('error') ||
+                        document.querySelector('script[src*="aptos"]')?.getAttribute('error');
+                    if (hasWalletError) {
+                        console.warn('Detected wallet error during initialization');
+                        setUseWallet(false);
+                        setHasInitialized(true);
+                    }
+                }
+            } catch (error) {
+                console.warn('Error during wallet initialization check:', error);
+                setUseWallet(false);
+                setHasInitialized(true);
+            }
+        };
+
+        checkForWalletErrors();
+    }, []);
+
     useEffect(() => {
         // Listen for wallet initialization errors
         const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-            if (event.reason?.message?.includes('Hex characters are invalid') ||
-                event.reason?.message?.includes('Cannot access') ||
-                event.reason?.message?.includes('hd') ||
-                event.reason?.message?.includes('wallet')) {
-                console.warn('Wallet initialization failed, switching to fallback mode');
+            const errorMessage = event.reason?.message || event.reason?.toString() || '';
+            if (errorMessage.includes('Hex characters are invalid') ||
+                errorMessage.includes('Cannot access') ||
+                errorMessage.includes('before initialization') ||
+                errorMessage.includes('hd') ||
+                errorMessage.includes('vl') ||
+                errorMessage.includes('wallet') ||
+                errorMessage.includes('aptos')) {
+                console.warn('Wallet initialization failed, switching to fallback mode:', errorMessage);
                 event.preventDefault();
                 // Use setTimeout to avoid setState during render
                 setTimeout(() => {
@@ -32,10 +61,14 @@ export const SmartWalletProvider: React.FC<SmartWalletProviderProps> = ({ childr
         };
 
         const handleError = (event: ErrorEvent) => {
-            if (event.message?.includes('Hex characters are invalid') ||
-                event.message?.includes('Cannot access') ||
-                event.message?.includes('hd')) {
-                console.warn('Wallet error detected, switching to fallback mode');
+            const errorMessage = event.message || event.error?.message || '';
+            if (errorMessage.includes('Hex characters are invalid') ||
+                errorMessage.includes('Cannot access') ||
+                errorMessage.includes('before initialization') ||
+                errorMessage.includes('hd') ||
+                errorMessage.includes('vl') ||
+                errorMessage.includes('aptos')) {
+                console.warn('Wallet error detected, switching to fallback mode:', errorMessage);
                 event.preventDefault();
                 // Use setTimeout to avoid setState during render
                 setTimeout(() => {
