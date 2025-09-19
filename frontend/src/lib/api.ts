@@ -87,11 +87,23 @@ class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
+    const apiUrl =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api";
+
+    // Debug logging for production
+    if (import.meta.env.PROD) {
+      console.log("🌍 Production Mode - API Configuration:");
+      console.log("VITE_API_BASE_URL:", import.meta.env.VITE_API_BASE_URL);
+      console.log("Final API URL:", apiUrl);
+      console.log("Environment:", import.meta.env.MODE);
+    }
+
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api",
+      baseURL: apiUrl,
       headers: {
         "Content-Type": "application/json",
       },
+      timeout: 30000, // 30 second timeout for production
     });
 
     // Add request interceptor to include auth token

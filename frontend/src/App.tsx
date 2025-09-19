@@ -8,6 +8,48 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import './styles/globals.css';
 import { LazyWrapper } from './utils/lazyLoad';
 
+// Error Boundary Component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('🚨 App Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-bg-900 text-text-default flex items-center justify-center">
+          <div className="text-center p-8 bg-surface-700 rounded-xl border border-surface-600 max-w-md">
+            <h2 className="text-xl font-bold text-danger mb-4">Something went wrong</h2>
+            <p className="text-muted mb-6">
+              {this.state.error?.message || 'An unexpected error occurred'}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-primary text-black rounded-lg font-semibold hover:bg-primary/90"
+            >
+              Reload App
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // Lazy load all pages
 const Auth = React.lazy(() => import('./pages/Auth').then(m => ({ default: m.Auth })));
 const Dashboard = React.lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -130,36 +172,48 @@ const AppLayout: React.FC = () => {
 };
 
 function App() {
+  // Add debug logging for production
+  React.useEffect(() => {
+    if (import.meta.env.PROD) {
+      console.log('🚀 Aptora Frontend Starting...');
+      console.log('Environment:', import.meta.env.MODE);
+      console.log('API URL:', import.meta.env.VITE_API_BASE_URL);
+      console.log('Base URL:', import.meta.env.VITE_BASE_URL);
+    }
+  }, []);
+
   return (
-    <Router>
-      <AptosWalletProvider>
-        <AuthProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/auth" element={
-              <AuthRoute>
-                <LazyWrapper>
-                  <Auth />
-                </LazyWrapper>
-              </AuthRoute>
-            } />
+    <ErrorBoundary>
+      <Router>
+        <AptosWalletProvider>
+          <AuthProvider>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/auth" element={
+                <AuthRoute>
+                  <LazyWrapper>
+                    <Auth />
+                  </LazyWrapper>
+                </AuthRoute>
+              } />
 
-            {/* Protected Routes */}
-            <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/trade" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/vaults" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/referrals" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/leaderboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/social" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              {/* Protected Routes */}
+              <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              <Route path="/trade" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              <Route path="/vaults" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              <Route path="/referrals" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              <Route path="/leaderboard" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              <Route path="/social" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
 
-            {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
-      </AptosWalletProvider>
-    </Router>
+              {/* Catch all route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AuthProvider>
+        </AptosWalletProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
