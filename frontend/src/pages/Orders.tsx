@@ -45,12 +45,6 @@ export const Orders: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (user) {
-            loadData();
-        }
-    }, [user, activeTab, loadData]);
-
     const loadData = React.useCallback(async () => {
         setIsLoading(true);
         setError(null);
@@ -75,6 +69,12 @@ export const Orders: React.FC = () => {
             setIsLoading(false);
         }
     }, [user, activeTab]);
+
+    useEffect(() => {
+        if (user) {
+            loadData();
+        }
+    }, [user, activeTab, loadData]);
 
     const handleCancelOrder = async (orderId: string) => {
         try {

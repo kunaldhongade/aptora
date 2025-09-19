@@ -57,9 +57,64 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [refreshToken, setRefreshToken] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(() =>
+    localStorage.getItem('access_token')
+  );
+  const [refreshToken, setRefreshToken] = useState<string | null>(() =>
+    localStorage.getItem('refresh_token')
+  );
   const [isLoading, setIsLoading] = useState(true);
+
+  // Define refreshAccessToken early to avoid hoisting issues
+  const refreshAccessToken = React.useCallback(async () => {
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    try {
+      const response = await apiClient.refreshToken(refreshToken);
+      setAccessToken(response.access_token);
+      localStorage.setItem('access_token', response.access_token);
+      console.log('Token refreshed successfully');
+    } catch (error) {
+      console.error('Token refresh error:', error);
+
+      // Check if it's a network error vs auth error
+      if (error instanceof Error) {
+        if (error.message.includes('Network Error') || error.message.includes('timeout')) {
+          throw new Error('Network error during token refresh');
+        }
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          throw new Error('Refresh token expired or invalid');
+        }
+      }
+
+      throw error;
+    }
+  }, [refreshToken]);
+
+  // Define clearAuthData early to avoid hoisting issues
+  const clearAuthData = React.useCallback(() => {
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    setIsAuthenticated(false);
+  }, []);
+
+  // Define logout early to avoid hoisting issues
+  const logout = React.useCallback(async () => {
+    try {
+      if (refreshToken) {
+        await apiClient.logout(refreshToken);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      clearAuthData();
+    }
+  }, [refreshToken, clearAuthData]);
 
   // Check if user is authenticated on mount
   useEffect(() => {
@@ -107,7 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initializeAuth();
-  }, [refreshAccessToken]);
+  }, [refreshAccessToken, clearAuthData]);
 
   // Set up automatic token refresh with retry logic
   useEffect(() => {
@@ -141,13 +196,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => clearInterval(refreshInterval);
   }, [accessToken, refreshToken, logout, refreshAccessToken]);
 
-  const clearAuthData = () => {
-    setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-  };
 
   const storeAuthData = (authResponse: AuthResponse) => {
     setUser(authResponse.user);
@@ -155,6 +203,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setRefreshToken(authResponse.refresh_token);
     localStorage.setItem('access_token', authResponse.access_token);
     localStorage.setItem('refresh_token', authResponse.refresh_token);
+    setIsAuthenticated(true);
   };
 
   const login = async (email: string, password: string) => {
@@ -183,44 +232,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = React.useCallback(async () => {
-    try {
-      if (refreshToken) {
-        await apiClient.logout(refreshToken);
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      clearAuthData();
-    }
-  }, [refreshToken]);
 
-  const refreshAccessToken = React.useCallback(async () => {
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    try {
-      const response = await apiClient.refreshToken(refreshToken);
-      setAccessToken(response.access_token);
-      localStorage.setItem('access_token', response.access_token);
-      console.log('Token refreshed successfully');
-    } catch (error) {
-      console.error('Token refresh error:', error);
-
-      // Check if it's a network error vs auth error
-      if (error instanceof Error) {
-        if (error.message.includes('Network Error') || error.message.includes('timeout')) {
-          throw new Error('Network error during token refresh');
-        }
-        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-          throw new Error('Refresh token expired or invalid');
-        }
-      }
-
-      throw error;
-    }
-  }, [refreshToken]);
 
   const updateUser = (userData: Partial<User>) => {
     if (user) {

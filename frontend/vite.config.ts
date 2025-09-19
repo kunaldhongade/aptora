@@ -11,22 +11,50 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Vendor chunks
+          // Vendor chunks - split more aggressively for Vercel
           if (id.includes("node_modules")) {
-            if (
-              id.includes("react") ||
-              id.includes("react-dom") ||
-              id.includes("react-router")
-            ) {
+            // React ecosystem
+            if (id.includes("react") || id.includes("react-dom")) {
               return "react-vendor";
             }
-            if (id.includes("framer-motion") || id.includes("lucide-react")) {
-              return "ui-vendor";
+            if (id.includes("react-router")) {
+              return "router-vendor";
             }
-            if (id.includes("axios") || id.includes("clsx")) {
+            // UI libraries
+            if (id.includes("framer-motion")) {
+              return "motion-vendor";
+            }
+            if (id.includes("lucide-react")) {
+              return "icons-vendor";
+            }
+            // Aptos wallet libraries (often large)
+            if (id.includes("@aptos-labs") || id.includes("aptos")) {
+              return "aptos-vendor";
+            }
+            // HTTP and utilities
+            if (id.includes("axios")) {
+              return "http-vendor";
+            }
+            if (id.includes("clsx") || id.includes("tailwind")) {
               return "utils-vendor";
             }
-            // All other node_modules
+            // Crypto and wallet related (often large)
+            if (
+              id.includes("crypto") ||
+              id.includes("wallet") ||
+              id.includes("petra") ||
+              id.includes("martian")
+            ) {
+              return "crypto-vendor";
+            }
+            // All other node_modules - split into smaller chunks
+            if (
+              id.includes("lodash") ||
+              id.includes("moment") ||
+              id.includes("date-fns")
+            ) {
+              return "utility-vendor";
+            }
             return "vendor";
           }
 
@@ -61,8 +89,10 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 800, // Set to 800KB
+    chunkSizeWarningLimit: 5000, // Set to 5MB to suppress warnings for Aptos libraries
     target: "esnext",
     minify: "esbuild", // Use esbuild instead of terser
+    sourcemap: false, // Disable sourcemaps for production to reduce bundle size
+    reportCompressedSize: false, // Skip compressed size reporting for faster builds
   },
 });
