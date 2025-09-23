@@ -8,6 +8,7 @@ use std::env;
 
 mod auth;
 mod db;
+mod email;
 mod handlers;
 mod kana_client;
 mod middleware;
@@ -75,6 +76,8 @@ async fn main() -> std::io::Result<()> {
                             .service(handlers::auth::refresh)
                             .service(handlers::auth::logout)
                             .service(handlers::auth::check_username)
+                            .service(handlers::auth::forgot_password)
+                            .service(handlers::auth::reset_password)
                             .service(web::resource("/me").route(web::get().to(handlers::auth::me))),
                     )
                     .service(

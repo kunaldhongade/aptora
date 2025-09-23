@@ -16,10 +16,13 @@ services:
       - APTOS_NETWORK=testnet
       - RUST_LOG=debug
       - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:4173
+      - RESEND_API_KEY=re_LREoFcvU_QCqHN6BLzLj5jc3SqMq1E33r
+      - FROM_EMAIL=noreply@aptora.com
+      - FRONTEND_URL=http://localhost:5174/
     ports:
       - "8081:8081"
     volumes:
-      - ./backend:/app
+      # - ./backend:/app  # Temporarily disabled to use updated schema
       - cargo_cache:/usr/local/cargo/registry
     networks:
       - aptora-network

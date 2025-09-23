@@ -48,6 +48,19 @@ pub struct Session {
     pub expires_at: DateTime<Utc>,
 }
 
+// Password Reset Token Model
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Insertable)]
+#[diesel(table_name = crate::schema::password_reset_tokens)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct PasswordResetToken {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub token: String,
+    pub expires_at: DateTime<Utc>,
+    pub used: Option<bool>,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Insertable)]
 #[diesel(table_name = crate::schema::sessions)]
 pub struct NewSession {

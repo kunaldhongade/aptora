@@ -52,11 +52,24 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    password_reset_tokens (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        token -> Text,
+        expires_at -> Timestamptz,
+        used -> Bool,
+        created_at -> Timestamptz,
+    }
+}
+
 diesel::joinable!(sessions -> users (user_id));
+diesel::joinable!(password_reset_tokens -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     follows,
     referral_rewards,
     sessions,
     users,
+    password_reset_tokens,
 );
