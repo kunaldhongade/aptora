@@ -12,6 +12,9 @@ export const authApi = {
   ) => apiClient.register(email, username, password, referralCode),
   refreshToken: (refreshToken: string) => apiClient.refreshToken(refreshToken),
   logout: (refreshToken: string) => apiClient.logout(refreshToken),
+  forgotPassword: (email: string) => apiClient.forgotPassword(email),
+  resetPassword: (token: string, newPassword: string) =>
+    apiClient.resetPassword(token, newPassword),
 };
 
 export type { AuthResponse, RefreshResponse };

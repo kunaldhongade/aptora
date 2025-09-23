@@ -8,6 +8,10 @@ import { SimpleWalletProvider } from './contexts/SimpleWalletProvider';
 import './styles/globals.css';
 import { LazyWrapper } from './utils/lazyLoad';
 
+// Lazy load password reset pages
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword = React.lazy(() => import('./pages/ResetPassword').then(m => ({ default: m.ResetPassword })));
+
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -195,6 +199,16 @@ function App() {
                     <Auth />
                   </LazyWrapper>
                 </AuthRoute>
+              } />
+              <Route path="/forgot-password" element={
+                <LazyWrapper>
+                  <ForgotPassword />
+                </LazyWrapper>
+              } />
+              <Route path="/reset-password" element={
+                <LazyWrapper>
+                  <ResetPassword />
+                </LazyWrapper>
               } />
 
               {/* Protected Routes */}

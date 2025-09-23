@@ -252,6 +252,29 @@ class ApiClient {
     await this.client.post("/auth/logout", { refresh_token: refreshToken });
   }
 
+  async forgotPassword(email: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<null>> = await this.client.post(
+      "/auth/forgot-password",
+      { email }
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error || "Failed to send reset email");
+    }
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<null>> = await this.client.post(
+      "/auth/reset-password",
+      {
+        token,
+        new_password: newPassword,
+      }
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error || "Failed to reset password");
+    }
+  }
+
   async getProfile(): Promise<User> {
     const response: AxiosResponse<ApiResponse<User>> = await this.client.get(
       "/auth/me"

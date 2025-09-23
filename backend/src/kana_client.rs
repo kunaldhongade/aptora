@@ -1,7 +1,6 @@
 use crate::models::*;
 use crate::utils::AppError;
 use chrono;
-use futures;
 use reqwest::Client;
 use serde_json::Value;
 use std::env;
